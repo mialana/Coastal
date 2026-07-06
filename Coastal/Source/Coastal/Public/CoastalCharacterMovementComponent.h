@@ -53,7 +53,7 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
     UPROPERTY(EditDefaultsOnly) float MinSpeed_Skate = 900.f;
     UPROPERTY(EditDefaultsOnly) float EnterImpulse_Skate = 400.f;
     UPROPERTY(EditDefaultsOnly) float GravityForce_Skate = 4000.f;
-    UPROPERTY(EditDefaultsOnly) float Friction_Skate = 1.3;
+    UPROPERTY(EditDefaultsOnly) float Friction_Skate = 1.3f;
 
     // transient
     UPROPERTY(Transient) ACoastalCharacter* CoastalCharacterOwner;

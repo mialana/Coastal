@@ -16,6 +16,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 
+DEFINE_LOG_CATEGORY(LogCoastalCharacter);
+
 ACoastalCharacter::ACoastalCharacter(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer.SetDefaultSubobjectClass<UCoastalCharacterMovementComponent>(
           ACharacter::CharacterMovementComponentName))
@@ -81,7 +83,7 @@ void ACoastalCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
     }
     else
     {
-        UE_LOG(LogCoastal, Error,
+        UE_LOG(LogCoastalCharacter, Error,
                TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input "
                     "system. If you intend to use the legacy system, then you will need to update this C++ file."),
                *GetNameSafe(this));

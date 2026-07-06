@@ -2,27 +2,13 @@
 
 #include "CoastalCharacterMovementComponent.h"
 
+#include "Coastal.h"
 #include "CoastalCharacter.h"
 #include "CoastalEquipmentMeshComponent.h"
 
-#include "DrawDebugHelpers.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
-
-#if 1
-constexpr float MacroDuration = 2.f;
-#define SLOG(x) GEngine->AddOnScreenDebugMessage(-1, MacroDuration ? MacroDuration : -1.f, FColor::Yellow, x);
-#define POINT(x, c) DrawDebugPoint(GetWorld(), x, 10, c, !MacroDuration, MacroDuration);
-#define LINE(x1, x2, c) DrawDebugLine(GetWorld(), x1, x2, c, !MacroDuration, MacroDuration);
-#define CAPSULE(x, c)                                                                                                  \
-    DrawDebugCapsule(GetWorld(), x, CapHH(), CapR(), FQuat::Identity, c, !MacroDuration, MacroDuration);
-#else
-#define SLOG(x)
-#define POINT(x, c)
-#define LINE(x1, x2, c)
-#define CAPSULE(x, c)
-#endif
 
 bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(const FSavedMovePtr& NewMove,
                                                                             ACharacter* InCharacter,

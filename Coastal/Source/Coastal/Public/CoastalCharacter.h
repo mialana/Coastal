@@ -10,7 +10,7 @@
 class UInputAction;
 struct FInputActionValue;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogCoastalCharacter, Log, All);
 
 /**
  *  A simple player-controllable third person character
