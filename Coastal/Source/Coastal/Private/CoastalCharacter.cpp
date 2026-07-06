@@ -1,19 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoastalCharacter.h"
+
+#include "Coastal.h"
+#include "CoastalCharacterMovementComponent.h"
+#include "CoastalEquipmentMeshComponent.h"
+
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Controller.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
-
-#include "Coastal.h"
-#include "CoastalCharacterMovementComponent.h"
 
 ACoastalCharacter::ACoastalCharacter(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer.SetDefaultSubobjectClass<UCoastalCharacterMovementComponent>(
@@ -55,11 +56,11 @@ ACoastalCharacter::ACoastalCharacter(const FObjectInitializer& ObjectInitializer
     FollowCamera->bUsePawnControlRotation = false;
 
     // Create the equipment mesh
-    EquipmentMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("EquipmentMesh"));
-    EquipmentMesh->SetupAttachment(RootComponent);
+    EquipmentMeshComponent = CreateDefaultSubobject<UCoastalEquipmentMeshComponent>(TEXT("EquipmentMesh"));
+    EquipmentMeshComponent->SetupAttachment(RootComponent);
 
-    // Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+    // Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character)
+    // are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
 void ACoastalCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -145,4 +146,16 @@ void ACoastalCharacter::DoJumpEnd()
 {
     // signal the character to stop jumping
     StopJumping();
+}
+
+FCollisionQueryParams ACoastalCharacter::GetIgnoreCharacterParams() const
+{
+    FCollisionQueryParams Params;
+
+    TArray<AActor*> CharacterChildren;
+    GetAllChildActors(CharacterChildren);
+    Params.AddIgnoredActors(CharacterChildren);
+    Params.AddIgnoredActor(this);
+
+    return Params;
 }

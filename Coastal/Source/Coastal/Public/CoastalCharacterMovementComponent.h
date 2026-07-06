@@ -6,6 +6,17 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "CoastalCharacterMovementComponent.generated.h"
 
+class ACoastalCharacter;
+
+UENUM(BlueprintType)
+
+enum ECustomMovementMode
+{
+    CMOVE_None UMETA(Hidden),
+    CMOVE_Skate UMETA(DisplayName = "Skate"),
+    CMOVE_MAX UMETA(Hidden),
+};
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 
 class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovementComponent
@@ -15,7 +26,7 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
     class FSavedMove_Coastal : public FSavedMove_Character
     {
     public:
-        uint8 Saved_bWantsToSkate : 1u;
+        uint8 Saved_bWantsToSprint : 1u;
 
         // dictate whether new move is the same and does not need to be sent separately
         virtual bool CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* InCharacter,
@@ -35,13 +46,20 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
         virtual FSavedMovePtr AllocateNewMove() override;
     };
 
-    UPROPERTY(EditDefaultsOnly)
-    float Skate_MaxWalkSpeed;
+    // parameters
+    UPROPERTY(EditDefaultsOnly) float MaxSpeed_Walk = 600.f;
+    UPROPERTY(EditDefaultsOnly) float MaxSpeed_Sprint = 1000.f;
 
-    UPROPERTY(EditDefaultsOnly)
-    float Walk_MaxWalkSpeed;
+    UPROPERTY(EditDefaultsOnly) float MinSpeed_Skate = 900.f;
+    UPROPERTY(EditDefaultsOnly) float EnterImpulse_Skate = 400.f;
+    UPROPERTY(EditDefaultsOnly) float GravityForce_Skate = 4000.f;
+    UPROPERTY(EditDefaultsOnly) float Friction_Skate = 1.3;
 
-    bool Safe_bWantsToSkate;
+    // transient
+    UPROPERTY(Transient) ACoastalCharacter* CoastalCharacterOwner;
+
+    // flags
+    bool Safe_bWantsToSprint;
 
 public:
     UCoastalCharacterMovementComponent();
@@ -49,17 +67,25 @@ public:
     virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 
 protected:
+    virtual void InitializeComponent() override;
+
     virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 
     virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) override;
 
 public:
-    UFUNCTION(BlueprintCallable, Category = CoastalCharacterMovementComponent)
-    void SkatePressed();
+    UFUNCTION(BlueprintCallable)
+    void SprintPressed();
+    UFUNCTION(BlueprintCallable)
+    void SprintReleased();
 
-    UFUNCTION(BlueprintCallable, Category = CoastalCharacterMovementComponent)
-    void SkateReleased();
-
-    UFUNCTION(BlueprintCallable, Category = CoastalCharacterMovementComponent)
+    UFUNCTION(BlueprintCallable)
     void CrouchPressed();
+
+    void EnterSkate(EMovementMode PrevMode, ECustomMovementMode PrevCustomMode);
+    void ExitSkate();
+    bool CanSkate() const;
+    void PhysSkate(float deltaTime, int32 Iterations);
+    bool GetHitResultCharacter(FHitResult& HitResult) const;
+    bool GetHitResultCharacterEquipment(FVector& HitNormal) const;
 };

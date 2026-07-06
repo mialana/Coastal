@@ -34,7 +34,7 @@ class ACoastalCharacter : public ACharacter
     class UCameraComponent* FollowCamera;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-    class USkeletalMeshComponent* EquipmentMesh;
+    class UCoastalEquipmentMeshComponent* EquipmentMeshComponent;
 
 protected:
     /** Jump Input Action */
@@ -86,6 +86,8 @@ public:
     virtual void DoJumpEnd();
 
 public:
+    FCollisionQueryParams GetIgnoreCharacterParams() const;
+
     FORCEINLINE class UCoastalCharacterMovementComponent* GetCoastalCharacterMovementComponent() const
     {
         return CoastalCharacterMovementComponent;
@@ -103,8 +105,8 @@ public:
         return FollowCamera;
     }
 
-    FORCEINLINE class USkeletalMeshComponent* GetEquipmentMesh() const
+    FORCEINLINE class UCoastalEquipmentMeshComponent* GetEquipmentMeshComponent() const
     {
-        return EquipmentMesh;
+        return EquipmentMeshComponent;
     }
 };
