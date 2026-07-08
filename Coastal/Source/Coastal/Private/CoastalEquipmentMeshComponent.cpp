@@ -6,7 +6,7 @@
 
 DEFINE_LOG_CATEGORY(LogCoastalEquipment);
 
-constexpr float kLINE_TRACE_DISTANCE = 5.f;
+constexpr float LINE_TRACE_DISTANCE = 5.f;
 
 UCoastalEquipmentMeshComponent::UCoastalEquipmentMeshComponent()
 {
@@ -64,46 +64,83 @@ FVector UCoastalEquipmentMeshComponent::GetBackRightBoneLocation() const
     return Transform.GetLocation();
 }
 
-bool UCoastalEquipmentMeshComponent::LineTraceFrontLeft(FHitResult& OutHit,
-                                                        const FCollisionQueryParams& IgnoreParams) const
+std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontLeft(
+    const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetFrontLeftBoneLocation();
-    const FVector End = Start + kLINE_TRACE_DISTANCE * FVector::DownVector;
+    const FVector End = Start + LINE_TRACE_DISTANCE * FVector::DownVector;
 
     LINE(Start, End, FColor::Purple);
 
-    return GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, IgnoreParams);
+    FHitResult HitResult;
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
+    {
+        return std::make_optional<FHitResult>(HitResult);
+    }
+    return std::nullopt;  // no hit occurred
 }
 
-bool UCoastalEquipmentMeshComponent::LineTraceFrontRight(FHitResult& OutHit,
-                                                         const FCollisionQueryParams& IgnoreParams) const
+std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontRight(
+    const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetFrontRightBoneLocation();
-    const FVector End = Start + kLINE_TRACE_DISTANCE * FVector::DownVector;
+    const FVector End = Start + LINE_TRACE_DISTANCE * FVector::DownVector;
 
     LINE(Start, End, FColor::Purple);
 
-    return GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, IgnoreParams);
+    FHitResult HitResult;
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
+    {
+        return std::make_optional<FHitResult>(HitResult);
+    }
+    return std::nullopt;  // no hit occurred
 }
 
-bool UCoastalEquipmentMeshComponent::LineTraceBackLeft(FHitResult& OutHit,
-                                                       const FCollisionQueryParams& IgnoreParams) const
+std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackLeft(
+    const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetBackLeftBoneLocation();
-    const FVector End = Start + kLINE_TRACE_DISTANCE * FVector::DownVector;
+    const FVector End = Start + LINE_TRACE_DISTANCE * FVector::DownVector;
 
     LINE(Start, End, FColor::Purple);
 
-    return GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, IgnoreParams);
+    FHitResult HitResult;
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
+    {
+        return std::make_optional<FHitResult>(HitResult);
+    }
+    return std::nullopt;  // no hit occurred
 }
 
-bool UCoastalEquipmentMeshComponent::LineTraceBackRight(FHitResult& OutHit,
-                                                        const FCollisionQueryParams& IgnoreParams) const
+std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackRight(
+    const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetBackRightBoneLocation();
-    const FVector End = Start + kLINE_TRACE_DISTANCE * FVector::DownVector;
+    const FVector End = Start + LINE_TRACE_DISTANCE * FVector::DownVector;
 
     LINE(Start, End, FColor::Purple);
 
-    return GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, IgnoreParams);
+    FHitResult HitResult;
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
+    {
+        return std::make_optional<FHitResult>(HitResult);
+    }
+    return std::nullopt;  // no hit occurred
+}
+
+std::optional<FVector> UCoastalEquipmentMeshComponent::LineTraceCombined(const FCollisionQueryParams& IgnoreParams) const
+{
+    std::optional<FHitResult> OptionHitResultFrontLeft = LineTraceFrontLeft(IgnoreParams);
+    bool bDidHitFrontLeft = OptionHitResultFrontLeft.has_value();
+
+    std::optional<FHitResult> OptionHitResultFrontRight = LineTraceFrontRight(IgnoreParams);
+    bool bDidHitFrontRight = OptionHitResultFrontRight.has_value();
+
+    std::optional<FHitResult> OptionHitResultBackLeft = LineTraceBackLeft(IgnoreParams);
+    bool bDidHitBackLeft = OptionHitResultBackLeft.has_value();
+
+    std::optional<FHitResult> OptionHitResultBackRight = LineTraceBackRight(IgnoreParams);
+    bool bDidHitBackRight = OptionHitResultBackRight.has_value();
+
+    return std::nullopt;
 }

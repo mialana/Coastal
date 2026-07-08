@@ -50,7 +50,7 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
     UPROPERTY(EditDefaultsOnly) float MaxSpeed_Walk = 600.f;
     UPROPERTY(EditDefaultsOnly) float MaxSpeed_Sprint = 1000.f;
 
-    UPROPERTY(EditDefaultsOnly) float MinSpeed_Skate = 900.f;
+    UPROPERTY(EditDefaultsOnly) float MinSpeed_Skate = 300.f;
     UPROPERTY(EditDefaultsOnly) float EnterImpulse_Skate = 400.f;
     UPROPERTY(EditDefaultsOnly) float GravityForce_Skate = 4000.f;
     UPROPERTY(EditDefaultsOnly) float Friction_Skate = 1.3f;
@@ -85,7 +85,7 @@ public:
     void EnterSkate(EMovementMode PrevMode, ECustomMovementMode PrevCustomMode);
     void ExitSkate();
     bool CanSkate() const;
-    void PhysSkate(float deltaTime, int32 Iterations);
-    bool GetHitResultCharacter(FHitResult& HitResult) const;
-    bool GetHitResultCharacterEquipment(FVector& HitNormal) const;
+    void PhysSkate(float DeltaTime, int32 Iterations);
+    std::optional<FVector> GetHitNormalCharacter() const;
+    std::optional<FVector> GetHitNormalCharacterEquipment() const;
 };

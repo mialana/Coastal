@@ -45,8 +45,10 @@ public:
     UFUNCTION(BlueprintCallable) FVector GetBackLeftBoneLocation() const;
     UFUNCTION(BlueprintCallable) FVector GetBackRightBoneLocation() const;
 
-    bool LineTraceFrontLeft(FHitResult& OutHit, const FCollisionQueryParams& IgnoreParams) const;
-    bool LineTraceFrontRight(FHitResult& OutHit, const FCollisionQueryParams& IgnoreParams) const;
-    bool LineTraceBackLeft(FHitResult& OutHit, const FCollisionQueryParams& IgnoreParams) const;
-    bool LineTraceBackRight(FHitResult& OutHit, const FCollisionQueryParams& IgnoreParams) const;
+    std::optional<FHitResult> LineTraceFrontLeft(const FCollisionQueryParams& IgnoreParams) const;
+    std::optional<FHitResult> LineTraceFrontRight(const FCollisionQueryParams& IgnoreParams) const;
+    std::optional<FHitResult> LineTraceBackLeft(const FCollisionQueryParams& IgnoreParams) const;
+    std::optional<FHitResult> LineTraceBackRight(const FCollisionQueryParams& IgnoreParams) const;
+
+    std::optional<FVector> LineTraceCombined(const FCollisionQueryParams& IgnoreParams) const;
 };

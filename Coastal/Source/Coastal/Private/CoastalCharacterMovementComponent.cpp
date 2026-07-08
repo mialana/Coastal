@@ -155,64 +155,94 @@ bool UCoastalCharacterMovementComponent::CanSkate() const
     return true;
 }
 
-void UCoastalCharacterMovementComponent::PhysSkate(float deltaTime, int32 Iterations)
+void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterations)
 {
-    if (deltaTime < MIN_TICK_TIME)
+    // proceed only on tick
+    if (DeltaTime < MIN_TICK_TIME)
     {
         return;
     }
+
+    // do not double-count additive root motion
     RestorePreAdditiveRootMotionVelocity();
+
+    std::optional<FVector> OptionHitNormal = GetHitNormalCharacterEquipment();
+
+#if 0
+    if (!OptionHitNormal.has_value() || Velocity.SizeSquared() < pow(MinSpeed_Skate, 2))
+    {
+        ExitSkate();
+        StartNewPhysics(DeltaTime, Iterations);
+        return;
+    }
+#endif
+
+    FVector HitNormal = OptionHitNormal.value();
+
+    // update velocity as a function of acceleration
+    Velocity += GravityForce_Skate * FVector::DownVector * DeltaTime;
+
+    // calculate effects of friction on velocity and acceleration
+    if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
+    {
+        CalcVelocity(DeltaTime, Friction_Skate, true, GetMaxBrakingDeceleration());
+    }
+
+    ApplyRootMotionToVelocity(DeltaTime);
+    Iterations++;
+    bJustTeleported = false;
+
+    // compute new rotation given desired hit plane
+    const FVector VelocityPlaneNormal = FVector::VectorPlaneProject(Velocity, HitNormal).GetSafeNormal();
+    const FQuat NewRotation = FRotationMatrix::MakeFromXZ(VelocityPlaneNormal, HitNormal).ToQuat();
+
+    // compute displacement during this tick
+    const FVector Displacement = Velocity * DeltaTime;
+
+    // save location before movement
+    const FVector OldLocation = UpdatedComponent->GetComponentLocation();
+
+    // perform the actual movement
+    FHitResult SafeMoveHitResult(1.f);
+    SafeMoveUpdatedComponent(Displacement, NewRotation, true, SafeMoveHitResult);
+
+    // check for if anything was hit during movement
+    if (SafeMoveHitResult.Time < 1.f)
+    {
+        HandleImpact(SafeMoveHitResult, DeltaTime, Displacement);
+        SlideAlongSurface(Displacement, 1.f - SafeMoveHitResult.Time, SafeMoveHitResult.Normal, SafeMoveHitResult, true);
+    }
+
+    // adjust velocity & acceleration in case of impact during safe movement
+    if (!bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
+    {
+        Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / DeltaTime;
+    }
 }
 
-bool UCoastalCharacterMovementComponent::GetHitResultCharacter(FHitResult& HitResult) const
+std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacter() const
 {
     FVector Start = UpdatedComponent->GetComponentLocation();
     FVector End = Start
                   + CoastalCharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2.f
                         * FVector::DownVector;
-    static FName ProfileName = TEXT("BlockAll");
+
+    static const FName PROFILE_NAME = TEXT("BlockAll");
 
     LINE(Start, End, FColor::Purple);  // debug trace
 
-    return GetWorld()->LineTraceSingleByProfile(HitResult, Start, End, ProfileName,
-                                                CoastalCharacterOwner->GetIgnoreCharacterParams());
+    FHitResult HitResult;
+    if (GetWorld()->LineTraceSingleByProfile(HitResult, Start, End, PROFILE_NAME,
+                                             CoastalCharacterOwner->GetIgnoreCharacterParams()))
+    {
+        return std::make_optional<FVector>(HitResult.ImpactNormal);
+    }
+    return std::nullopt;  // no hit occurred
 }
 
-bool UCoastalCharacterMovementComponent::GetHitResultCharacterEquipment(FVector& HitNormal) const
+std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacterEquipment() const
 {
     UCoastalEquipmentMeshComponent* Equipment = CoastalCharacterOwner->GetEquipmentMeshComponent();
 
-    // TODO: allow front and back surface contact bones to be set in `UCoastalEquipmentMeshComponent` blueprint
-
-    FVector StartFront;
-    FVector EndFront;
-    FHitResult HitResultFront;
-    bool bIsFrontOnSurface = GetWorld()->LineTraceSingleByChannel(HitResultFront, StartFront, EndFront, ECC_Visibility,
-                                                                  CoastalCharacterOwner->GetIgnoreCharacterParams());
-
-    FVector StartBack;
-    FVector EndBack;
-    FHitResult HitResultBack;
-    bool bIsBackOnSurface = GetWorld()->LineTraceSingleByChannel(HitResultBack, StartBack, EndBack, ECC_Visibility,
-                                                                 CoastalCharacterOwner->GetIgnoreCharacterParams());
-
-    if (!bIsFrontOnSurface && !bIsBackOnSurface)
-    {
-        return false;
-    }
-
-    if (bIsFrontOnSurface && !bIsBackOnSurface)
-    {
-        HitNormal = HitResultFront.Normal;
-    }
-    else if (!bIsFrontOnSurface && bIsBackOnSurface)
-    {
-        HitNormal = HitResultBack.Normal;
-    }
-    else
-    {
-        // get average normal of the two hits
-        HitNormal = (HitResultFront.Normal + HitResultBack.Normal).GetSafeNormal();
-    }
-    return true;
+    return Equipment->LineTraceCombined(CoastalCharacterOwner->GetIgnoreCharacterParams());
 }
