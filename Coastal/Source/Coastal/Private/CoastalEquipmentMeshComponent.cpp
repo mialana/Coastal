@@ -4,8 +4,6 @@
 
 #include "Coastal.h"
 
-DEFINE_LOG_CATEGORY(LogCoastalEquipment);
-
 constexpr float LINE_TRACE_DISTANCE = 5.f;
 
 UCoastalEquipmentMeshComponent::UCoastalEquipmentMeshComponent()
@@ -20,7 +18,7 @@ FVector UCoastalEquipmentMeshComponent::GetFrontLeftBoneLocation() const
 {
     if (FrontLeftBoneIndex == INDEX_NONE)
     {
-        UE_LOG(LogCoastalEquipment, Error, TEXT("Equipment front left bone index was not set properly."));
+        UE_LOG(LogCoastal, Error, TEXT("Equipment front left bone index was not set properly."));
     }
 
     FTransform Transform = GetBoneTransform(FrontLeftBoneIndex, FTransform::Identity);
@@ -32,7 +30,7 @@ FVector UCoastalEquipmentMeshComponent::GetFrontRightBoneLocation() const
 {
     if (FrontRightBoneIndex == INDEX_NONE)
     {
-        UE_LOG(LogCoastalEquipment, Error, TEXT("Equipment front right bone index was not set properly."));
+        UE_LOG(LogCoastal, Error, TEXT("Equipment front right bone index was not set properly."));
     }
 
     FTransform Transform = GetBoneTransform(FrontRightBoneIndex, FTransform::Identity);
@@ -44,7 +42,7 @@ FVector UCoastalEquipmentMeshComponent::GetBackLeftBoneLocation() const
 {
     if (BackLeftBoneIndex == INDEX_NONE)
     {
-        UE_LOG(LogCoastalEquipment, Error, TEXT("Equipment back left bone index was not set properly."));
+        UE_LOG(LogCoastal, Error, TEXT("Equipment back left bone index was not set properly."));
     }
 
     FTransform Transform = GetBoneTransform(BackLeftBoneIndex, FTransform::Identity);
@@ -56,7 +54,7 @@ FVector UCoastalEquipmentMeshComponent::GetBackRightBoneLocation() const
 {
     if (BackRightBoneIndex == INDEX_NONE)
     {
-        UE_LOG(LogCoastalEquipment, Error, TEXT("Equipment back right bone index was not set properly."));
+        UE_LOG(LogCoastal, Error, TEXT("Equipment back right bone index was not set properly."));
     }
 
     FTransform Transform = GetBoneTransform(BackRightBoneIndex, FTransform::Identity);

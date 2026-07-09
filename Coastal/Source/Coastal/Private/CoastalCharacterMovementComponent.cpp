@@ -10,6 +10,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 
+#pragma region SavedMove
+
 bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(const FSavedMovePtr& NewMove,
                                                                             ACharacter* InCharacter,
                                                                             float MaxDelta) const
@@ -17,6 +19,10 @@ bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(cons
     FSavedMove_Coastal* NewCoastalMove = static_cast<FSavedMove_Coastal*>(NewMove.Get());
 
     if (Saved_bWantsToSprint != NewCoastalMove->Saved_bWantsToSprint)
+    {
+        return false;
+    }
+    if (Saved_bPrevWantsToCrouch != NewCoastalMove->Saved_bPrevWantsToCrouch)
     {
         return false;
     }
@@ -31,6 +37,7 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::Clear()
 
     // reset flags
     Saved_bWantsToSprint = 0u;
+    Saved_bPrevWantsToCrouch = 0u;
 }
 
 uint8 UCoastalCharacterMovementComponent::FSavedMove_Coastal::GetCompressedFlags() const
@@ -54,6 +61,7 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::SetMoveFor(
         C->GetCharacterMovement());
 
     Saved_bWantsToSprint = CharacterMovement->Safe_bWantsToSprint;
+    Saved_bPrevWantsToCrouch = CharacterMovement->Safe_bPrevWantsToCrouch;
 }
 
 void UCoastalCharacterMovementComponent::FSavedMove_Coastal::PrepMoveFor(ACharacter* C)
@@ -64,7 +72,12 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::PrepMoveFor(ACharac
         C->GetCharacterMovement());
 
     CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
+    CharacterMovement->Safe_bPrevWantsToCrouch = Saved_bPrevWantsToCrouch;
 }
+
+#pragma endregion
+
+#pragma region NetworkPredictionData_Client
 
 UCoastalCharacterMovementComponent::FNetworkPredictionData_Client_Coastal::FNetworkPredictionData_Client_Coastal(
     const UCharacterMovementComponent& ClientMovement)
@@ -76,6 +89,10 @@ FSavedMovePtr UCoastalCharacterMovementComponent::FNetworkPredictionData_Client_
 {
     return FSavedMovePtr(new FSavedMove_Coastal());
 }
+
+#pragma endregion
+
+#pragma region CharacterMovementComponent
 
 UCoastalCharacterMovementComponent::UCoastalCharacterMovementComponent()
 {
@@ -113,6 +130,38 @@ void UCoastalCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
     Safe_bWantsToSprint = static_cast<bool>(Flags & FSavedMove_Character::FLAG_Custom_0);
 }
 
+void UCoastalCharacterMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
+{
+    if (MovementMode == MOVE_Walking && !bWantsToCrouch && Safe_bPrevWantsToCrouch)
+    {
+        if (Velocity.SizeSquared() > pow(MinSpeed_Skate, 2) && GetHitNormalCharacterEquipment().has_value())
+        {
+            EnterSkate();
+        }
+    }
+
+    if (IsCustomMovementMode(CMOVE_Skate) && !bWantsToCrouch)
+    {
+        SetMovementMode(MOVE_Walking);
+    }
+
+    Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
+}
+
+void UCoastalCharacterMovementComponent::PhysCustom(float DeltaTime, int32 Iterations)
+{
+    Super::PhysCustom(DeltaTime, Iterations);
+
+    switch (CustomMovementMode)
+    {
+        case CMOVE_Skate:
+            PhysSkate(DeltaTime, Iterations);
+            break;
+        default:
+            UE_LOG(LogCoastal, Fatal, TEXT("Invalid Movement Mode"));
+    }
+}
+
 void UCoastalCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation,
                                                            const FVector& OldVelocity)
 {
@@ -129,30 +178,28 @@ void UCoastalCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, c
             MaxWalkSpeed = MaxSpeed_Walk;
         }
     }
+
+    Safe_bPrevWantsToCrouch = bWantsToCrouch;
 }
 
-void UCoastalCharacterMovementComponent::SprintPressed()
+void UCoastalCharacterMovementComponent::EnterSkate()
 {
-    Safe_bWantsToSprint = true;
+    UE_LOG(LogCoastal, Warning, TEXT("Entered skate."))
+    bWantsToCrouch = true;
+    Velocity += Velocity.GetSafeNormal2D() * EnterImpulse_Skate;
+    SetMovementMode(MOVE_Custom, CMOVE_Skate);
 }
 
-void UCoastalCharacterMovementComponent::SprintReleased()
+void UCoastalCharacterMovementComponent::ExitSkate()
 {
-    Safe_bWantsToSprint = false;
-}
+    bWantsToCrouch = false;
 
-void UCoastalCharacterMovementComponent::CrouchPressed()
-{
-    bWantsToCrouch = !bWantsToCrouch;
-}
-
-void UCoastalCharacterMovementComponent::EnterSkate(EMovementMode PrevMode, ECustomMovementMode PrevCustomMode) {}
-
-void UCoastalCharacterMovementComponent::ExitSkate() {}
-
-bool UCoastalCharacterMovementComponent::CanSkate() const
-{
-    return true;
+    FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(),
+                                                    FVector::UpVector)
+                            .ToQuat();
+    FHitResult HitResult;
+    SafeMoveUpdatedComponent(FVector::ZeroVector, NewRotation, true, HitResult);
+    SetMovementMode(MOVE_Walking);
 }
 
 void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterations)
@@ -166,17 +213,14 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
     // do not double-count additive root motion
     RestorePreAdditiveRootMotionVelocity();
 
+    // exit skate if not on a viable surface or velocity is not enough
     std::optional<FVector> OptionHitNormal = GetHitNormalCharacterEquipment();
-
-#if 0
     if (!OptionHitNormal.has_value() || Velocity.SizeSquared() < pow(MinSpeed_Skate, 2))
     {
         ExitSkate();
         StartNewPhysics(DeltaTime, Iterations);
         return;
     }
-#endif
-
     FVector HitNormal = OptionHitNormal.value();
 
     // update velocity as a function of acceleration
@@ -246,3 +290,25 @@ std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacter
 
     return Equipment->LineTraceCombined(CoastalCharacterOwner->GetIgnoreCharacterParams());
 }
+
+void UCoastalCharacterMovementComponent::SprintPressed()
+{
+    Safe_bWantsToSprint = true;
+}
+
+void UCoastalCharacterMovementComponent::SprintReleased()
+{
+    Safe_bWantsToSprint = false;
+}
+
+void UCoastalCharacterMovementComponent::CrouchPressed()
+{
+    bWantsToCrouch = !bWantsToCrouch;
+}
+
+bool UCoastalCharacterMovementComponent::IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const
+{
+    return MovementMode == MOVE_Custom && CustomMovementMode == InCustomMovementMode;
+}
+
+#pragma endregion

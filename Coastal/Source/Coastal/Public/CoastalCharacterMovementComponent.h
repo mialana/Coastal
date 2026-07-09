@@ -26,7 +26,9 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
     class FSavedMove_Coastal : public FSavedMove_Character
     {
     public:
-        uint8 Saved_bWantsToSprint : 1u;
+        // flags
+        uint8 Saved_bWantsToSprint : 1;
+        uint8 Saved_bPrevWantsToCrouch : 1;
 
         // dictate whether new move is the same and does not need to be sent separately
         virtual bool CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* InCharacter,
@@ -43,6 +45,7 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
     public:
         FNetworkPredictionData_Client_Coastal(const UCharacterMovementComponent& ClientMovement);
 
+        // Override saved move class with our custom class
         virtual FSavedMovePtr AllocateNewMove() override;
     };
 
@@ -60,6 +63,7 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
 
     // flags
     bool Safe_bWantsToSprint;
+    bool Safe_bPrevWantsToCrouch;
 
 public:
     UCoastalCharacterMovementComponent();
@@ -71,21 +75,25 @@ protected:
 
     virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 
+    virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;
+
     virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) override;
 
+    virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
+
 public:
-    UFUNCTION(BlueprintCallable)
-    void SprintPressed();
-    UFUNCTION(BlueprintCallable)
-    void SprintReleased();
-
-    UFUNCTION(BlueprintCallable)
-    void CrouchPressed();
-
-    void EnterSkate(EMovementMode PrevMode, ECustomMovementMode PrevCustomMode);
+    void EnterSkate();
     void ExitSkate();
-    bool CanSkate() const;
     void PhysSkate(float DeltaTime, int32 Iterations);
+
     std::optional<FVector> GetHitNormalCharacter() const;
     std::optional<FVector> GetHitNormalCharacterEquipment() const;
+
+public:
+    UFUNCTION(BlueprintCallable) void SprintPressed();
+    UFUNCTION(BlueprintCallable) void SprintReleased();
+
+    UFUNCTION(BlueprintCallable) void CrouchPressed();
+
+    UFUNCTION(BlueprintPure) bool IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const;
 };

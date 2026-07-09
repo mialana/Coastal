@@ -7,8 +7,6 @@
 
 #include "CoastalEquipmentMeshComponent.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogCoastalEquipment, Log, All);
-
 /**
  * 
  */
