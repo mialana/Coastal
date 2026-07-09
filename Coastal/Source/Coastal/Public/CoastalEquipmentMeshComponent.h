@@ -37,6 +37,8 @@ protected:
 public:
     UCoastalEquipmentMeshComponent();
 
+    virtual void BeginPlay() override;
+
 public:
     UFUNCTION(BlueprintCallable) FVector GetFrontLeftBoneLocation() const;
     UFUNCTION(BlueprintCallable) FVector GetFrontRightBoneLocation() const;

@@ -22,10 +22,6 @@ bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(cons
     {
         return false;
     }
-    if (Saved_bPrevWantsToCrouch != NewCoastalMove->Saved_bPrevWantsToCrouch)
-    {
-        return false;
-    }
 
     // defer to super class
     return FSavedMove_Character::CanCombineWith(NewMove, InCharacter, MaxDelta);
@@ -37,7 +33,6 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::Clear()
 
     // reset flags
     Saved_bWantsToSprint = 0u;
-    Saved_bPrevWantsToCrouch = 0u;
 }
 
 uint8 UCoastalCharacterMovementComponent::FSavedMove_Coastal::GetCompressedFlags() const
@@ -61,7 +56,6 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::SetMoveFor(
         C->GetCharacterMovement());
 
     Saved_bWantsToSprint = CharacterMovement->Safe_bWantsToSprint;
-    Saved_bPrevWantsToCrouch = CharacterMovement->Safe_bPrevWantsToCrouch;
 }
 
 void UCoastalCharacterMovementComponent::FSavedMove_Coastal::PrepMoveFor(ACharacter* C)
@@ -72,7 +66,6 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::PrepMoveFor(ACharac
         C->GetCharacterMovement());
 
     CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
-    CharacterMovement->Safe_bPrevWantsToCrouch = Saved_bPrevWantsToCrouch;
 }
 
 #pragma endregion
@@ -130,24 +123,6 @@ void UCoastalCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
     Safe_bWantsToSprint = static_cast<bool>(Flags & FSavedMove_Character::FLAG_Custom_0);
 }
 
-void UCoastalCharacterMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
-{
-    if (MovementMode == MOVE_Walking && !bWantsToCrouch && Safe_bPrevWantsToCrouch)
-    {
-        if (Velocity.SizeSquared() > pow(MinSpeed_Skate, 2) && GetHitNormalCharacterEquipment().has_value())
-        {
-            EnterSkate();
-        }
-    }
-
-    if (IsCustomMovementMode(CMOVE_Skate) && !bWantsToCrouch)
-    {
-        SetMovementMode(MOVE_Walking);
-    }
-
-    Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
-}
-
 void UCoastalCharacterMovementComponent::PhysCustom(float DeltaTime, int32 Iterations)
 {
     Super::PhysCustom(DeltaTime, Iterations);
@@ -178,21 +153,18 @@ void UCoastalCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, c
             MaxWalkSpeed = MaxSpeed_Walk;
         }
     }
-
-    Safe_bPrevWantsToCrouch = bWantsToCrouch;
 }
 
 void UCoastalCharacterMovementComponent::EnterSkate()
 {
-    UE_LOG(LogCoastal, Warning, TEXT("Entered skate."))
-    bWantsToCrouch = true;
+    UE_LOG(LogCoastal, Warning, TEXT("Entered skate."));
     Velocity += Velocity.GetSafeNormal2D() * EnterImpulse_Skate;
     SetMovementMode(MOVE_Custom, CMOVE_Skate);
 }
 
 void UCoastalCharacterMovementComponent::ExitSkate()
 {
-    bWantsToCrouch = false;
+    UE_LOG(LogCoastal, Warning, TEXT("Exited skate."));
 
     FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(),
                                                     FVector::UpVector)
@@ -304,6 +276,18 @@ void UCoastalCharacterMovementComponent::SprintReleased()
 void UCoastalCharacterMovementComponent::CrouchPressed()
 {
     bWantsToCrouch = !bWantsToCrouch;
+}
+
+void UCoastalCharacterMovementComponent::SkatePressed()
+{
+    if (IsCustomMovementMode(CMOVE_Skate))
+    {
+        ExitSkate();
+    }
+    else
+    {
+        EnterSkate();
+    }
 }
 
 bool UCoastalCharacterMovementComponent::IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const

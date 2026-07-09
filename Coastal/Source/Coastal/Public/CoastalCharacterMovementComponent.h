@@ -12,8 +12,8 @@ UENUM(BlueprintType)
 
 enum ECustomMovementMode
 {
-    CMOVE_None UMETA(Hidden),
-    CMOVE_Skate UMETA(DisplayName = "Skate"),
+    CMOVE_None UMETA(DisplayName = "Custom None"),
+    CMOVE_Skate UMETA(DisplayName = "Custom Skate"),
     CMOVE_MAX UMETA(Hidden),
 };
 
@@ -28,7 +28,6 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
     public:
         // flags
         uint8 Saved_bWantsToSprint : 1;
-        uint8 Saved_bPrevWantsToCrouch : 1;
 
         // dictate whether new move is the same and does not need to be sent separately
         virtual bool CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* InCharacter,
@@ -50,7 +49,7 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
     };
 
     // parameters
-    UPROPERTY(EditDefaultsOnly) float MaxSpeed_Walk = 600.f;
+    UPROPERTY(EditDefaultsOnly) float MaxSpeed_Walk = 500.f;
     UPROPERTY(EditDefaultsOnly) float MaxSpeed_Sprint = 1000.f;
 
     UPROPERTY(EditDefaultsOnly) float MinSpeed_Skate = 300.f;
@@ -75,8 +74,6 @@ protected:
 
     virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 
-    virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;
-
     virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) override;
 
     virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
@@ -94,6 +91,7 @@ public:
     UFUNCTION(BlueprintCallable) void SprintReleased();
 
     UFUNCTION(BlueprintCallable) void CrouchPressed();
+    UFUNCTION(BlueprintCallable) void SkatePressed();
 
     UFUNCTION(BlueprintPure) bool IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const;
 };

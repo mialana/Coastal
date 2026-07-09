@@ -6,8 +6,19 @@
 
 constexpr float LINE_TRACE_DISTANCE = 5.f;
 
-UCoastalEquipmentMeshComponent::UCoastalEquipmentMeshComponent()
+UCoastalEquipmentMeshComponent::UCoastalEquipmentMeshComponent() {}
+
+void UCoastalEquipmentMeshComponent::BeginPlay()
 {
+    Super::BeginPlay();
+
+    TArray<FName> BoneNames;
+    GetBoneNames(BoneNames);
+    for (auto& BoneName : BoneNames)
+    {
+        UE_LOG(LogCoastal, Warning, TEXT("%s"), *BoneName.ToString());
+    }
+
     FrontLeftBoneIndex = GetBoneIndex(FrontLeftBoneName);
     FrontRightBoneIndex = GetBoneIndex(FrontRightBoneName);
     BackLeftBoneIndex = GetBoneIndex(BackLeftBoneName);
