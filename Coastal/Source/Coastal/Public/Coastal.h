@@ -9,9 +9,9 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogCoastal, Log, All);
 
 #if 1
-constexpr float DEBUG_DURATION = 2.f;
+constexpr float DEBUG_DURATION = 10.f;
 #define SLOG(x) GEngine->AddOnScreenDebugMessage(-1, DEBUG_DURATION ? DEBUG_DURATION : -1.f, FColor::Yellow, x);
-#define POINT(x, c) DrawDebugPoint(GetWorld(), x, 10, c, !DEBUG_DURATION, DEBUG_DURATION);
+#define POINT(x, c) DrawDebugPoint(GetWorld(), x, 15, c, !DEBUG_DURATION, DEBUG_DURATION);
 #define LINE(x1, x2, c) DrawDebugLine(GetWorld(), x1, x2, c, !DEBUG_DURATION, DEBUG_DURATION);
 #define CAPSULE(x, c)                                                                                                  \
     DrawDebugCapsule(GetWorld(), x, CapHH(), CapR(), FQuat::Identity, c, !DEBUG_DURATION, DEBUG_DURATION);

@@ -3,3 +3,5 @@ desktop.ini
 
 # Blender backup file
 *.blend1
+
+*DotSettings.user

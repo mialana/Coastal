@@ -49,13 +49,14 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
     };
 
     // parameters
-    UPROPERTY(EditDefaultsOnly) float MaxSpeed_Walk = 500.f;
-    UPROPERTY(EditDefaultsOnly) float MaxSpeed_Sprint = 1000.f;
+    UPROPERTY(EditDefaultsOnly) float Walk_MaxSpeed = 500.f;
+    UPROPERTY(EditDefaultsOnly) float Sprint_MaxSpeed = 1000.f;
 
-    UPROPERTY(EditDefaultsOnly) float MinSpeed_Skate = 300.f;
-    UPROPERTY(EditDefaultsOnly) float EnterImpulse_Skate = 400.f;
-    UPROPERTY(EditDefaultsOnly) float GravityForce_Skate = 4000.f;
-    UPROPERTY(EditDefaultsOnly) float Friction_Skate = 1.3f;
+    UPROPERTY(EditDefaultsOnly) float Skate_MinSpeed = 600.f;
+    UPROPERTY(EditDefaultsOnly) float Skate_EnterImpulse = 500.f;
+    UPROPERTY(EditDefaultsOnly) float Skate_GravityForce = 4000.f;
+    UPROPERTY(EditDefaultsOnly) float Skate_FrictionFactor = 1.3f;
+    UPROPERTY(EditDefaultsOnly) float Skate_BrakingDeceleration = 1000.f;
 
     // transient
     UPROPERTY(Transient) ACoastalCharacter* CoastalCharacterOwner;
@@ -71,6 +72,8 @@ public:
 
 protected:
     virtual void InitializeComponent() override;
+
+    virtual float GetMaxBrakingDeceleration() const override;
 
     virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 

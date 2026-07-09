@@ -114,6 +114,24 @@ void UCoastalCharacterMovementComponent::InitializeComponent()
     Super::InitializeComponent();
 
     CoastalCharacterOwner = Cast<ACoastalCharacter>(GetOwner());
+    CoastalCharacterOwner->GetEquipmentMeshComponent()->SetVisibility(false);
+}
+
+float UCoastalCharacterMovementComponent::GetMaxBrakingDeceleration() const
+{
+    if (MovementMode != MOVE_Custom)
+    {
+        return Super::GetMaxBrakingDeceleration();
+    }
+
+    switch (CustomMovementMode)
+    {
+        case CMOVE_Skate:
+            return Skate_BrakingDeceleration;
+        default:
+            UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"))
+            return -1.f;
+    }
 }
 
 void UCoastalCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
@@ -146,26 +164,25 @@ void UCoastalCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, c
     {
         if (Safe_bWantsToSprint)
         {
-            MaxWalkSpeed = MaxSpeed_Sprint;
+            MaxWalkSpeed = Sprint_MaxSpeed;
         }
         else
         {
-            MaxWalkSpeed = MaxSpeed_Walk;
+            MaxWalkSpeed = Walk_MaxSpeed;
         }
     }
 }
 
 void UCoastalCharacterMovementComponent::EnterSkate()
 {
-    UE_LOG(LogCoastal, Warning, TEXT("Entered skate."));
-    Velocity += Velocity.GetSafeNormal2D() * EnterImpulse_Skate;
+    CoastalCharacterOwner->GetEquipmentMeshComponent()->SetVisibility(true);
+    Velocity += Velocity.GetSafeNormal2D() * Skate_EnterImpulse;
     SetMovementMode(MOVE_Custom, CMOVE_Skate);
 }
 
 void UCoastalCharacterMovementComponent::ExitSkate()
 {
-    UE_LOG(LogCoastal, Warning, TEXT("Exited skate."));
-
+    CoastalCharacterOwner->GetEquipmentMeshComponent()->SetVisibility(false);
     FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(),
                                                     FVector::UpVector)
                             .ToQuat();
@@ -185,32 +202,28 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
     // do not double-count additive root motion
     RestorePreAdditiveRootMotionVelocity();
 
-    // exit skate if not on a viable surface or velocity is not enough
+    // exit skate if not on a viable surface
     std::optional<FVector> OptionHitNormal = GetHitNormalCharacterEquipment();
-    if (!OptionHitNormal.has_value() || Velocity.SizeSquared() < pow(MinSpeed_Skate, 2))
-    {
-        ExitSkate();
-        StartNewPhysics(DeltaTime, Iterations);
-        return;
-    }
-    FVector HitNormal = OptionHitNormal.value();
+    FVector HitNormal = OptionHitNormal.has_value() ? OptionHitNormal.value() : FVector::UpVector;
 
     // update velocity as a function of acceleration
-    Velocity += GravityForce_Skate * FVector::DownVector * DeltaTime;
+    Velocity += Skate_GravityForce * FVector::DownVector * DeltaTime;
 
     // calculate effects of friction on velocity and acceleration
     if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
     {
-        CalcVelocity(DeltaTime, Friction_Skate, true, GetMaxBrakingDeceleration());
+        CalcVelocity(DeltaTime, Skate_FrictionFactor, true, GetMaxBrakingDeceleration());
     }
 
     ApplyRootMotionToVelocity(DeltaTime);
     Iterations++;
     bJustTeleported = false;
 
-    // compute new rotation given desired hit plane
-    const FVector VelocityPlaneNormal = FVector::VectorPlaneProject(Velocity, HitNormal).GetSafeNormal();
-    const FQuat NewRotation = FRotationMatrix::MakeFromXZ(VelocityPlaneNormal, HitNormal).ToQuat();
+    // flatten velocity onto hit surface by removing component of velocity that points along normal
+    const FVector ProjectedVelocity = FVector::VectorPlaneProject(Velocity, HitNormal).GetSafeNormal();
+
+    // compute rotation from desired forward (projected velocity) and desired up
+    const FQuat NewRotation = FRotationMatrix::MakeFromXZ(ProjectedVelocity, HitNormal).ToQuat();
 
     // compute displacement during this tick
     const FVector Displacement = Velocity * DeltaTime;

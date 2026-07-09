@@ -16,23 +16,12 @@ class COASTAL_API UCoastalEquipmentMeshComponent : public USkeletalMeshComponent
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    FName FrontLeftBoneName;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true")) FName FrontLeftBoneName;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true")) FName FrontRightBoneName;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true")) FName BackLeftBoneName;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true")) FName BackRightBoneName;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    FName FrontRightBoneName;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    FName BackLeftBoneName;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    FName BackRightBoneName;
-
-protected:
-    UPROPERTY(BlueprintReadOnly) int32 FrontLeftBoneIndex = INDEX_NONE;
-    UPROPERTY(BlueprintReadOnly) int32 FrontRightBoneIndex = INDEX_NONE;
-    UPROPERTY(BlueprintReadOnly) int32 BackLeftBoneIndex = INDEX_NONE;
-    UPROPERTY(BlueprintReadOnly) int32 BackRightBoneIndex = INDEX_NONE;
+    UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true")) float ScaledHalfHeight;
 
 public:
     UCoastalEquipmentMeshComponent();

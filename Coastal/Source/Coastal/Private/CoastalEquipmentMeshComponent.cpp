@@ -2,9 +2,9 @@
 
 #include "CoastalEquipmentMeshComponent.h"
 
+#include "AnimationRuntime.h"
 #include "Coastal.h"
-
-constexpr float LINE_TRACE_DISTANCE = 5.f;
+#include "Engine/SkeletalMesh.h"
 
 UCoastalEquipmentMeshComponent::UCoastalEquipmentMeshComponent() {}
 
@@ -12,78 +12,63 @@ void UCoastalEquipmentMeshComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    TArray<FName> BoneNames;
-    GetBoneNames(BoneNames);
-    for (auto& BoneName : BoneNames)
-    {
-        UE_LOG(LogCoastal, Warning, TEXT("%s"), *BoneName.ToString());
-    }
-
-    FrontLeftBoneIndex = GetBoneIndex(FrontLeftBoneName);
-    FrontRightBoneIndex = GetBoneIndex(FrontRightBoneName);
-    BackLeftBoneIndex = GetBoneIndex(BackLeftBoneName);
-    BackRightBoneIndex = GetBoneIndex(BackRightBoneName);
+    ScaledHalfHeight = Bounds.BoxExtent.Z;
 }
 
 FVector UCoastalEquipmentMeshComponent::GetFrontLeftBoneLocation() const
 {
-    if (FrontLeftBoneIndex == INDEX_NONE)
+    FVector Location = GetBoneLocation(FrontLeftBoneName, EBoneSpaces::WorldSpace);
+    if (Location.IsZero())
     {
-        UE_LOG(LogCoastal, Error, TEXT("Equipment front left bone index was not set properly."));
+        UE_LOG(LogCoastal, Error, TEXT("Equipment front left bone name was not set properly."));
     }
 
-    FTransform Transform = GetBoneTransform(FrontLeftBoneIndex, FTransform::Identity);
-
-    return Transform.GetLocation();
+    return Location;
 }
 
 FVector UCoastalEquipmentMeshComponent::GetFrontRightBoneLocation() const
 {
-    if (FrontRightBoneIndex == INDEX_NONE)
+    FVector Location = GetBoneLocation(FrontRightBoneName, EBoneSpaces::WorldSpace);
+    if (Location.IsZero())
     {
-        UE_LOG(LogCoastal, Error, TEXT("Equipment front right bone index was not set properly."));
+        UE_LOG(LogCoastal, Error, TEXT("Equipment front right bone name was not set properly."));
     }
 
-    FTransform Transform = GetBoneTransform(FrontRightBoneIndex, FTransform::Identity);
-
-    return Transform.GetLocation();
+    return Location;
 }
 
 FVector UCoastalEquipmentMeshComponent::GetBackLeftBoneLocation() const
 {
-    if (BackLeftBoneIndex == INDEX_NONE)
+    FVector Location = GetBoneLocation(BackLeftBoneName, EBoneSpaces::WorldSpace);
+    if (Location.IsZero())
     {
-        UE_LOG(LogCoastal, Error, TEXT("Equipment back left bone index was not set properly."));
+        UE_LOG(LogCoastal, Error, TEXT("Equipment back left bone name was not set properly."));
     }
 
-    FTransform Transform = GetBoneTransform(BackLeftBoneIndex, FTransform::Identity);
-
-    return Transform.GetLocation();
+    return Location;
 }
 
 FVector UCoastalEquipmentMeshComponent::GetBackRightBoneLocation() const
 {
-    if (BackRightBoneIndex == INDEX_NONE)
+    FVector Location = GetBoneLocation(BackRightBoneName, EBoneSpaces::WorldSpace);
+    if (Location.IsZero())
     {
-        UE_LOG(LogCoastal, Error, TEXT("Equipment back right bone index was not set properly."));
+        UE_LOG(LogCoastal, Error, TEXT("Equipment back right bone name was not set properly."));
     }
 
-    FTransform Transform = GetBoneTransform(BackRightBoneIndex, FTransform::Identity);
-
-    return Transform.GetLocation();
+    return Location;
 }
 
 std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontLeft(
     const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetFrontLeftBoneLocation();
-    const FVector End = Start + LINE_TRACE_DISTANCE * FVector::DownVector;
-
-    LINE(Start, End, FColor::Purple);
+    const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
 
     FHitResult HitResult;
     if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
     {
+        LINE(Start, End, FColor::Orange);
         return std::make_optional<FHitResult>(HitResult);
     }
     return std::nullopt;  // no hit occurred
@@ -93,13 +78,12 @@ std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontRight(
     const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetFrontRightBoneLocation();
-    const FVector End = Start + LINE_TRACE_DISTANCE * FVector::DownVector;
-
-    LINE(Start, End, FColor::Purple);
+    const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
 
     FHitResult HitResult;
     if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
     {
+        LINE(Start, End, FColor::Purple);
         return std::make_optional<FHitResult>(HitResult);
     }
     return std::nullopt;  // no hit occurred
@@ -109,13 +93,12 @@ std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackLeft(
     const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetBackLeftBoneLocation();
-    const FVector End = Start + LINE_TRACE_DISTANCE * FVector::DownVector;
-
-    LINE(Start, End, FColor::Purple);
+    const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
 
     FHitResult HitResult;
     if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
     {
+        LINE(Start, End, FColor::Red);
         return std::make_optional<FHitResult>(HitResult);
     }
     return std::nullopt;  // no hit occurred
@@ -125,13 +108,12 @@ std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackRight(
     const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetBackRightBoneLocation();
-    const FVector End = Start + LINE_TRACE_DISTANCE * FVector::DownVector;
-
-    LINE(Start, End, FColor::Purple);
+    const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
 
     FHitResult HitResult;
     if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
     {
+        LINE(Start, End, FColor::Blue);
         return std::make_optional<FHitResult>(HitResult);
     }
     return std::nullopt;  // no hit occurred
@@ -151,5 +133,33 @@ std::optional<FVector> UCoastalEquipmentMeshComponent::LineTraceCombined(const F
     std::optional<FHitResult> OptionHitResultBackRight = LineTraceBackRight(IgnoreParams);
     bool bDidHitBackRight = OptionHitResultBackRight.has_value();
 
-    return std::nullopt;
+    if (!bDidHitFrontLeft && !bDidHitFrontRight && !bDidHitBackLeft && !bDidHitBackRight)
+    {
+        return std::nullopt;
+    }
+
+    FVector AccumulatedNormal = FVector::ZeroVector;
+    int32 HitCount = 0;
+    if (bDidHitFrontLeft)
+    {
+        AccumulatedNormal += OptionHitResultFrontLeft->Normal;
+        HitCount++;
+    }
+    if (bDidHitFrontRight)
+    {
+        AccumulatedNormal += OptionHitResultFrontRight->Normal;
+        HitCount++;
+    }
+    if (bDidHitBackLeft)
+    {
+        AccumulatedNormal += OptionHitResultBackLeft->Normal;
+        HitCount++;
+    }
+    if (bDidHitBackRight)
+    {
+        AccumulatedNormal += OptionHitResultBackRight->Normal;
+        HitCount++;
+    }
+
+    return (AccumulatedNormal / HitCount).GetSafeNormal();
 }
