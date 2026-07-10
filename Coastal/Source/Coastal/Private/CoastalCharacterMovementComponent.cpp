@@ -89,6 +89,7 @@ FSavedMovePtr UCoastalCharacterMovementComponent::FNetworkPredictionData_Client_
 
 UCoastalCharacterMovementComponent::UCoastalCharacterMovementComponent()
 {
+    BrakingFrictionFactor = 1.f;  // true drag
     DefaultCustomMovementMode = CMOVE_Skate;
 }
 
@@ -150,6 +151,23 @@ float UCoastalCharacterMovementComponent::GetMaxSpeed() const
     {
         case CMOVE_Skate:
             return Skate_MaxSpeed;
+        default:
+            UE_LOG(LogTemp, Error, TEXT("Invalid Movement Mode"))
+            return -1.f;
+    }
+}
+
+float UCoastalCharacterMovementComponent::GetMaxAcceleration() const
+{
+    if (MovementMode != MOVE_Custom)
+    {
+        return Super::GetMaxAcceleration();
+    }
+
+    switch (CustomMovementMode)
+    {
+        case CMOVE_Skate:
+            return Skate_MaxAcceleration;
         default:
             UE_LOG(LogTemp, Error, TEXT("Invalid Movement Mode"))
             return -1.f;
@@ -264,7 +282,7 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
     // calculate effects of friction on velocity and acceleration
     if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
     {
-        CalcVelocity(DeltaTime, Skate_FrictionFactor, true, GetMaxBrakingDeceleration());
+        CalcVelocity(DeltaTime, Skate_FrictionFactor, false, GetMaxBrakingDeceleration());
     }
 
     ApplyRootMotionToVelocity(DeltaTime);
@@ -300,10 +318,6 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
     {
         Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / DeltaTime;
     }
-
-    /*FString LogMessage = FString::Printf(TEXT("Velocity: <%s> [%f]"), *Velocity.GetSafeNormal().ToString(),
-                                         Velocity.Length());
-    SLOG(LogMessage);*/
 }
 
 std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacter() const
