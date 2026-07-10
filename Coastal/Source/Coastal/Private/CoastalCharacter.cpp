@@ -6,7 +6,6 @@
 #include "CoastalCharacterMovementComponent.h"
 #include "CoastalEquipmentMeshComponent.h"
 
-#include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -35,9 +34,6 @@ ACoastalCharacter::ACoastalCharacter(const FObjectInitializer& ObjectInitializer
     // Configure character movement
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
-
-    // Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
-    // instead of recompiling to adjust them
     GetCharacterMovement()->JumpZVelocity = 500.f;
     GetCharacterMovement()->AirControl = 0.35f;
     GetCharacterMovement()->MaxWalkSpeed = 500.f;
@@ -58,11 +54,8 @@ ACoastalCharacter::ACoastalCharacter(const FObjectInitializer& ObjectInitializer
     FollowCamera->bUsePawnControlRotation = false;
 
     // Create the equipment mesh
-    EquipmentMeshComponent = CreateDefaultSubobject<UCoastalEquipmentMeshComponent>(TEXT("EquipmentMesh"));
+    EquipmentMeshComponent = CreateDefaultSubobject<UCoastalEquipmentMeshComponent>(TEXT("EquipmentMeshComponent"));
     EquipmentMeshComponent->SetupAttachment(RootComponent);
-
-    // Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character)
-    // are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
 void ACoastalCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

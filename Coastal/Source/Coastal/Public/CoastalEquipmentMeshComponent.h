@@ -26,6 +26,8 @@ class COASTAL_API UCoastalEquipmentMeshComponent : public USkeletalMeshComponent
 public:
     UCoastalEquipmentMeshComponent();
 
+    virtual void InitializeComponent() override;
+
     virtual void BeginPlay() override;
 
 public:

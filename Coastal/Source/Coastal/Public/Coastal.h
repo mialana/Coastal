@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
 
 /** Main log category used across the project */

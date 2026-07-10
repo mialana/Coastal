@@ -8,6 +8,13 @@
 
 UCoastalEquipmentMeshComponent::UCoastalEquipmentMeshComponent() {}
 
+void UCoastalEquipmentMeshComponent::InitializeComponent()
+{
+    Super::InitializeComponent();
+
+    SetVisibility(false);
+}
+
 void UCoastalEquipmentMeshComponent::BeginPlay()
 {
     Super::BeginPlay();

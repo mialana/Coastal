@@ -89,7 +89,7 @@ FSavedMovePtr UCoastalCharacterMovementComponent::FNetworkPredictionData_Client_
 
 UCoastalCharacterMovementComponent::UCoastalCharacterMovementComponent()
 {
-    NavAgentProps.bCanCrouch = true;
+    DefaultCustomMovementMode = CMOVE_Skate;
 }
 
 FNetworkPredictionData_Client* UCoastalCharacterMovementComponent::GetPredictionData_Client() const
@@ -114,7 +114,46 @@ void UCoastalCharacterMovementComponent::InitializeComponent()
     Super::InitializeComponent();
 
     CoastalCharacterOwner = Cast<ACoastalCharacter>(GetOwner());
-    CoastalCharacterOwner->GetEquipmentMeshComponent()->SetVisibility(false);
+    Stored_Walk_MaxSpeed = MaxWalkSpeed;
+}
+
+void UCoastalCharacterMovementComponent::SetDefaultMovementMode()
+{
+    Super::SetDefaultMovementMode();
+
+    if (DefaultLandMovementMode == MOVE_Custom)
+    {
+        SetMovementMode(MOVE_Custom, DefaultCustomMovementMode);
+    }
+}
+
+float UCoastalCharacterMovementComponent::GetMaxSpeed() const
+{
+    if (Safe_bWantsToSprint)
+    {
+        if (MovementMode == MOVE_Walking)
+        {
+            return Walk_SprintMaxSpeed;
+        }
+        if (MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Skate)
+        {
+            return Skate_SprintMaxSpeed;
+        }
+    }
+
+    if (MovementMode != MOVE_Custom)
+    {
+        return Super::GetMaxSpeed();
+    }
+
+    switch (CustomMovementMode)
+    {
+        case CMOVE_Skate:
+            return Skate_MaxSpeed;
+        default:
+            UE_LOG(LogTemp, Error, TEXT("Invalid Movement Mode"))
+            return -1.f;
+    }
 }
 
 float UCoastalCharacterMovementComponent::GetMaxBrakingDeceleration() const
@@ -129,7 +168,7 @@ float UCoastalCharacterMovementComponent::GetMaxBrakingDeceleration() const
         case CMOVE_Skate:
             return Skate_BrakingDeceleration;
         default:
-            UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"))
+            UE_LOG(LogTemp, Error, TEXT("Invalid Movement Mode"))
             return -1.f;
     }
 }
@@ -152,6 +191,7 @@ void UCoastalCharacterMovementComponent::PhysCustom(float DeltaTime, int32 Itera
             break;
         default:
             UE_LOG(LogCoastal, Fatal, TEXT("Invalid Movement Mode"));
+            break;
     }
 }
 
@@ -164,20 +204,34 @@ void UCoastalCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, c
     {
         if (Safe_bWantsToSprint)
         {
-            MaxWalkSpeed = Sprint_MaxSpeed;
+            MaxWalkSpeed = Walk_SprintMaxSpeed;
         }
         else
         {
-            MaxWalkSpeed = Walk_MaxSpeed;
+            MaxWalkSpeed = Stored_Walk_MaxSpeed;
         }
     }
 }
 
-void UCoastalCharacterMovementComponent::EnterSkate()
+void UCoastalCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode,
+                                                               uint8 PreviousCustomMode)
+{
+    Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+
+    if (PreviousMovementMode == MOVE_Custom && PreviousCustomMode == CMOVE_Skate)
+    {
+        ExitSkate();
+    }
+
+    if (IsCustomMovementMode(CMOVE_Skate))
+    {
+        EnterSkate();
+    }
+}
+
+void UCoastalCharacterMovementComponent::EnterSkate() const
 {
     CoastalCharacterOwner->GetEquipmentMeshComponent()->SetVisibility(true);
-    Velocity += Velocity.GetSafeNormal2D() * Skate_EnterImpulse;
-    SetMovementMode(MOVE_Custom, CMOVE_Skate);
 }
 
 void UCoastalCharacterMovementComponent::ExitSkate()
@@ -188,7 +242,6 @@ void UCoastalCharacterMovementComponent::ExitSkate()
                             .ToQuat();
     FHitResult HitResult;
     SafeMoveUpdatedComponent(FVector::ZeroVector, NewRotation, true, HitResult);
-    SetMovementMode(MOVE_Walking);
 }
 
 void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterations)
@@ -202,12 +255,11 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
     // do not double-count additive root motion
     RestorePreAdditiveRootMotionVelocity();
 
-    // exit skate if not on a viable surface
     std::optional<FVector> OptionHitNormal = GetHitNormalCharacterEquipment();
     FVector HitNormal = OptionHitNormal.has_value() ? OptionHitNormal.value() : FVector::UpVector;
 
     // update velocity as a function of acceleration
-    Velocity += Skate_GravityForce * FVector::DownVector * DeltaTime;
+    Velocity += GetGravityZ() * FVector::UpVector * DeltaTime;
 
     // calculate effects of friction on velocity and acceleration
     if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
@@ -219,11 +271,12 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
     Iterations++;
     bJustTeleported = false;
 
-    // flatten velocity onto hit surface by removing component of velocity that points along normal
-    const FVector ProjectedVelocity = FVector::VectorPlaneProject(Velocity, HitNormal).GetSafeNormal();
+    // flatten forward vector onto hit surface by removing component that points along normal
+    FVector Forward = Velocity.IsNearlyZero() ? GetForwardVector() : Velocity;
+    FVector ProjectedForward = FVector::VectorPlaneProject(Forward, HitNormal).GetSafeNormal();
 
     // compute rotation from desired forward (projected velocity) and desired up
-    const FQuat NewRotation = FRotationMatrix::MakeFromXZ(ProjectedVelocity, HitNormal).ToQuat();
+    const FQuat NewRotation = FRotationMatrix::MakeFromXZ(ProjectedForward, HitNormal).ToQuat();
 
     // compute displacement during this tick
     const FVector Displacement = Velocity * DeltaTime;
@@ -247,6 +300,10 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
     {
         Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / DeltaTime;
     }
+
+    /*FString LogMessage = FString::Printf(TEXT("Velocity: <%s> [%f]"), *Velocity.GetSafeNormal().ToString(),
+                                         Velocity.Length());
+    SLOG(LogMessage);*/
 }
 
 std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacter() const
@@ -286,20 +343,15 @@ void UCoastalCharacterMovementComponent::SprintReleased()
     Safe_bWantsToSprint = false;
 }
 
-void UCoastalCharacterMovementComponent::CrouchPressed()
-{
-    bWantsToCrouch = !bWantsToCrouch;
-}
-
 void UCoastalCharacterMovementComponent::SkatePressed()
 {
     if (IsCustomMovementMode(CMOVE_Skate))
     {
-        ExitSkate();
+        SetMovementMode(MOVE_Walking);
     }
     else
     {
-        EnterSkate();
+        SetMovementMode(MOVE_Custom, CMOVE_Skate);
     }
 }
 

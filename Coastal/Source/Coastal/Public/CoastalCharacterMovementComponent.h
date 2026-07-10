@@ -49,14 +49,17 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
     };
 
     // parameters
-    UPROPERTY(EditDefaultsOnly) float Walk_MaxSpeed = 500.f;
-    UPROPERTY(EditDefaultsOnly) float Sprint_MaxSpeed = 1000.f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    TEnumAsByte<ECustomMovementMode> DefaultCustomMovementMode;
 
-    UPROPERTY(EditDefaultsOnly) float Skate_MinSpeed = 600.f;
-    UPROPERTY(EditDefaultsOnly) float Skate_EnterImpulse = 500.f;
-    UPROPERTY(EditDefaultsOnly) float Skate_GravityForce = 4000.f;
-    UPROPERTY(EditDefaultsOnly) float Skate_FrictionFactor = 1.3f;
-    UPROPERTY(EditDefaultsOnly) float Skate_BrakingDeceleration = 1000.f;
+    float Stored_Walk_MaxSpeed = -1.f;  // Set from existing walk max speed property
+    UPROPERTY(EditDefaultsOnly) float Walk_SprintMaxSpeed = 1000.f;
+
+    UPROPERTY(EditDefaultsOnly) float Skate_MinSpeed = 100.f;
+    UPROPERTY(EditDefaultsOnly) float Skate_MaxSpeed = 1000.f;
+    UPROPERTY(EditDefaultsOnly) float Skate_SprintMaxSpeed = 1500.f;
+    UPROPERTY(EditDefaultsOnly) float Skate_FrictionFactor = 0.5f;
+    UPROPERTY(EditDefaultsOnly) float Skate_BrakingDeceleration = 100.f;
 
     // transient
     UPROPERTY(Transient) ACoastalCharacter* CoastalCharacterOwner;
@@ -73,16 +76,22 @@ public:
 protected:
     virtual void InitializeComponent() override;
 
+    virtual void SetDefaultMovementMode() override;
+
+    virtual float GetMaxSpeed() const override;
+
     virtual float GetMaxBrakingDeceleration() const override;
 
     virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 
     virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) override;
 
+    virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
+
     virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
 
-public:
-    void EnterSkate();
+private:
+    void EnterSkate() const;
     void ExitSkate();
     void PhysSkate(float DeltaTime, int32 Iterations);
 
@@ -93,7 +102,6 @@ public:
     UFUNCTION(BlueprintCallable) void SprintPressed();
     UFUNCTION(BlueprintCallable) void SprintReleased();
 
-    UFUNCTION(BlueprintCallable) void CrouchPressed();
     UFUNCTION(BlueprintCallable) void SkatePressed();
 
     UFUNCTION(BlueprintPure) bool IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const;
