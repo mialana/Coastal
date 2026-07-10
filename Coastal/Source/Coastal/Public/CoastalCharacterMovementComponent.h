@@ -77,6 +77,8 @@ protected:
 
     virtual void SetDefaultMovementMode() override;
 
+    virtual bool CanAttemptJump() const override;
+
     virtual float GetMaxSpeed() const override;
 
     virtual float GetMaxAcceleration() const override;

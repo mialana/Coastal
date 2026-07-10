@@ -128,6 +128,12 @@ void UCoastalCharacterMovementComponent::SetDefaultMovementMode()
     }
 }
 
+bool UCoastalCharacterMovementComponent::CanAttemptJump() const
+{
+    return Super::CanAttemptJump()
+           || (IsCustomMovementMode(CMOVE_Skate) && GetHitNormalCharacterEquipment().has_value());
+}
+
 float UCoastalCharacterMovementComponent::GetMaxSpeed() const
 {
     if (Safe_bWantsToSprint)
@@ -240,8 +246,7 @@ void UCoastalCharacterMovementComponent::OnMovementModeChanged(EMovementMode Pre
     {
         ExitSkate();
     }
-
-    if (IsCustomMovementMode(CMOVE_Skate))
+    else if (IsCustomMovementMode(CMOVE_Skate))
     {
         EnterSkate();
     }
@@ -362,10 +367,12 @@ void UCoastalCharacterMovementComponent::SkatePressed()
     if (IsCustomMovementMode(CMOVE_Skate))
     {
         SetMovementMode(MOVE_Walking);
+        DefaultLandMovementMode = MOVE_Walking;
     }
     else
     {
         SetMovementMode(MOVE_Custom, CMOVE_Skate);
+        DefaultLandMovementMode = MOVE_Custom;
     }
 }
 
