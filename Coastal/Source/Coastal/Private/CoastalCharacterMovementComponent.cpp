@@ -10,9 +10,12 @@
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 
+const float UCoastalCharacterMovementComponent::BRAKE_TO_STOP_VELOCITY_SQUARED = BRAKE_TO_STOP_VELOCITY
+                                                                                 * BRAKE_TO_STOP_VELOCITY;
+
 #pragma region FSavedMove
 
-void FSavedMove_Coastal::Clear()
+void UCoastalCharacterMovementComponent::FSavedMove_Coastal::Clear()
 {
     FSavedMove_Character::Clear();
 
@@ -20,8 +23,9 @@ void FSavedMove_Coastal::Clear()
     Saved_bWantsToSprint = 0u;
 }
 
-void FSavedMove_Coastal::SetMoveFor(ACharacter* C, float InDeltaTime, FVector const& NewAccel,
-                                    FNetworkPredictionData_Client_Character& ClientData)
+void UCoastalCharacterMovementComponent::FSavedMove_Coastal::SetMoveFor(ACharacter* C, float InDeltaTime,
+                                                                        FVector const& NewAccel,
+                                                                        FNetworkPredictionData_Client_Character& ClientData)
 {
     FSavedMove_Character::SetMoveFor(C, InDeltaTime, NewAccel, ClientData);
 
@@ -30,7 +34,8 @@ void FSavedMove_Coastal::SetMoveFor(ACharacter* C, float InDeltaTime, FVector co
     Saved_bWantsToSprint = CharacterMovement->Safe_bWantsToSprint;
 }
 
-bool FSavedMove_Coastal::CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* InCharacter, float MaxDelta) const
+bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(const FSavedMovePtr& NewMove,
+                                                                            ACharacter* InCharacter, float MaxDelta) const
 {
     FSavedMove_Coastal* NewCoastalMove = static_cast<FSavedMove_Coastal*>(NewMove.Get());
 
@@ -43,7 +48,7 @@ bool FSavedMove_Coastal::CanCombineWith(const FSavedMovePtr& NewMove, ACharacter
     return FSavedMove_Character::CanCombineWith(NewMove, InCharacter, MaxDelta);
 }
 
-void FSavedMove_Coastal::PrepMoveFor(ACharacter* C)
+void UCoastalCharacterMovementComponent::FSavedMove_Coastal::PrepMoveFor(ACharacter* C)
 {
     FSavedMove_Character::PrepMoveFor(C);
 
@@ -52,7 +57,7 @@ void FSavedMove_Coastal::PrepMoveFor(ACharacter* C)
     CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
 }
 
-uint8 FSavedMove_Coastal::GetCompressedFlags() const
+uint8 UCoastalCharacterMovementComponent::FSavedMove_Coastal::GetCompressedFlags() const
 {
     uint8 Result = FSavedMove_Character::GetCompressedFlags();
 
@@ -68,12 +73,13 @@ uint8 FSavedMove_Coastal::GetCompressedFlags() const
 
 #pragma region FNetworkPredictionData_Client
 
-FNetworkPredictionData_Client_Coastal::FNetworkPredictionData_Client_Coastal(const UCharacterMovementComponent& ClientMovement)
+UCoastalCharacterMovementComponent::FNetworkPredictionData_Client_Coastal::FNetworkPredictionData_Client_Coastal(
+    const UCharacterMovementComponent& ClientMovement)
     : FNetworkPredictionData_Client_Character(ClientMovement)
 {
 }
 
-FSavedMovePtr FNetworkPredictionData_Client_Coastal::AllocateNewMove()
+FSavedMovePtr UCoastalCharacterMovementComponent::FNetworkPredictionData_Client_Coastal::AllocateNewMove()
 {
     return MakeShared<FSavedMove_Coastal>();
 }
@@ -151,6 +157,7 @@ bool UCoastalCharacterMovementComponent::CanAttemptJump() const
 
 float UCoastalCharacterMovementComponent::GetMaxSpeed() const
 {
+    // override max speed with custom sprint mode
     if (MovementMode == MOVE_Walking)
     {
         return Safe_bWantsToSprint ? MaxSpeedSprintWalking : MaxWalkSpeed;
@@ -237,55 +244,88 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
         return;
     }
 
-    bJustTeleported = false;
-
-    std::optional<FVector> OptionHitNormal = GetHitNormalCharacterEquipment();
-    FVector HitNormal = OptionHitNormal.has_value() ? OptionHitNormal.value() : FVector::UpVector;
-
-    // update velocity as a function of acceleration
-    Velocity += GetGravityZ() * FVector::UpVector * DeltaTime;
-
-    // calculate effects of friction on velocity and acceleration
-    if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
+    // proceed only if in a valid state
+    if (!CharacterOwner
+        || (!CharacterOwner->Controller && !bRunPhysicsWithNoController && !HasAnimRootMotion()
+            && !CurrentRootMotion.HasOverrideVelocity() && (CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)))
     {
-        CalcVelocity(DeltaTime, FrictionFactorSkating, false, GetMaxBrakingDeceleration());
+        Velocity = FVector::ZeroVector;
+        Acceleration = FVector::ZeroVector;
+        return;
     }
 
-    ApplyRootMotionToVelocity(DeltaTime);
-    Iterations++;
-
-    // flatten forward vector onto hit surface by removing component that points along normal
-    FVector Forward = Velocity.IsNearlyZero() ? GetForwardVector() : Velocity;
-    FVector ProjectedForward = FVector::VectorPlaneProject(Forward, HitNormal).GetSafeNormal();
-
-    // compute rotation from desired forward (projected velocity) and desired up
-    const FQuat NewRotation = FRotationMatrix::MakeFromXZ(ProjectedForward, HitNormal).ToQuat();
-
-    // compute displacement during this tick
-    const FVector Displacement = Velocity * DeltaTime;
-
-    // save location before movement
-    const FVector OldLocation = UpdatedComponent->GetComponentLocation();
-
-    // perform the actual movement
-    FHitResult SafeMoveHitResult(1.f);
-    SafeMoveUpdatedComponent(Displacement, NewRotation, true, SafeMoveHitResult);
-
-    // check for if anything was hit during movement
-    if (SafeMoveHitResult.Time < 1.f)
+    // loop for time-stepped physics within a single tick
+    float RemainingTime = DeltaTime;
+    while ((RemainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) && CharacterOwner
+           && (CharacterOwner->Controller || bRunPhysicsWithNoController
+               || (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)))
     {
-        HandleImpact(SafeMoveHitResult, DeltaTime, Displacement);
-        SlideAlongSurface(Displacement, 1.f - SafeMoveHitResult.Time, SafeMoveHitResult.Normal, SafeMoveHitResult, true);
-    }
+        Iterations++;
+        bJustTeleported = false;
+        const float TimeTick = GetSimulationTimeStep(RemainingTime, Iterations);
+        RemainingTime -= TimeTick;
 
-    // adjust velocity & acceleration in case of impact during safe movement
-    if (!bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
-    {
-        Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / DeltaTime;
+        // update velocity as a function of acceleration
+        Velocity += GetGravityZ() * FVector::UpVector * TimeTick;
+
+        CalcVelocity(TimeTick, FrictionSkating, false, GetMaxBrakingDeceleration());
+
+        // compute displacement during this tick
+        const FVector Displacement = TimeTick * Velocity;  // dx = v * dt
+        if (Displacement.IsNearlyZero())
+        {
+            RemainingTime = 0.f;  // make sure this is the last iteration
+        }
+
+        // compute up vector as either the current up vector or the new hit normal
+        FVector Up = UpdatedComponent->GetUpVector();
+        if (std::optional<FVector> OptionHitNormal = GetHitNormalCharacterEquipment(); OptionHitNormal.has_value())
+        {
+            // if hit normal did not change enough, keep the same hit normal
+            if (FVector HitNormal = OptionHitNormal.value(); !HitNormal.Cross(Up).IsNearlyZero(0.01f))
+            {
+                Up = HitNormal;
+            }
+        }
+
+        // do not use the z-component when computing whether we should substitute forward vector for velocity
+        FVector Velocity2D = FVector(Velocity.X, Velocity.Y, 0.f);
+        const FVector Forward = Velocity2D.SizeSquared() > BRAKE_TO_STOP_VELOCITY_SQUARED
+                                    ? Velocity
+                                    : UpdatedComponent->GetForwardVector();
+        // adjust forward vector onto the desired plane by removing component that points along up
+        const FVector ProjectedForward = FVector::VectorPlaneProject(Forward, Up);
+
+        // compute rotation from desired forward and desired up
+        FQuat Rotation = UpdatedComponent->GetComponentQuat();
+        if (!ProjectedForward.IsNearlyZero())
+        {
+            const FQuat ProjectedRotation = FRotationMatrix::MakeFromXZ(ProjectedForward.GetSafeNormal(), Up).ToQuat();
+            Rotation = ProjectedRotation;
+        }
+        // TODO: adjust velocity given adjusted up and forward
+
+        // save location before movement
+        const FVector OldLocation = UpdatedComponent->GetComponentLocation();
+
+        // perform the actual movement
+        FHitResult SafeMoveHitResult(1.f);
+        SafeMoveUpdatedComponent(Displacement, Rotation, true, SafeMoveHitResult);
+
+        // check for if anything was hit during movement
+        if (SafeMoveHitResult.Time < 1.f)
+        {
+            HandleImpact(SafeMoveHitResult, TimeTick, Displacement);
+            SlideAlongSurface(Displacement, 1.f - SafeMoveHitResult.Time, SafeMoveHitResult.Normal, SafeMoveHitResult, true);
+        }
+
+        // adjust velocity & acceleration in case of impact during safe movement
+        if (!bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
+        {
+            Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / TimeTick;  // v = dx / dt
+        }
     }
 }
-
-// Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick; // v = dx / dt
 
 std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacter() const
 {
