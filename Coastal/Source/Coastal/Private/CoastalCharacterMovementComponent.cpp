@@ -10,11 +10,28 @@
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 
-#pragma region SavedMove
+#pragma region FSavedMove
 
-bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(const FSavedMovePtr& NewMove,
-                                                                            ACharacter* InCharacter,
-                                                                            float MaxDelta) const
+void FSavedMove_Coastal::Clear()
+{
+    FSavedMove_Character::Clear();
+
+    // reset flags
+    Saved_bWantsToSprint = 0u;
+}
+
+void FSavedMove_Coastal::SetMoveFor(ACharacter* C, float InDeltaTime, FVector const& NewAccel,
+                                    FNetworkPredictionData_Client_Character& ClientData)
+{
+    FSavedMove_Character::SetMoveFor(C, InDeltaTime, NewAccel, ClientData);
+
+    UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(
+        C->GetCharacterMovement());
+
+    Saved_bWantsToSprint = CharacterMovement->Safe_bWantsToSprint;
+}
+
+bool FSavedMove_Coastal::CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* InCharacter, float MaxDelta) const
 {
     FSavedMove_Coastal* NewCoastalMove = static_cast<FSavedMove_Coastal*>(NewMove.Get());
 
@@ -27,15 +44,17 @@ bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(cons
     return FSavedMove_Character::CanCombineWith(NewMove, InCharacter, MaxDelta);
 }
 
-void UCoastalCharacterMovementComponent::FSavedMove_Coastal::Clear()
+void FSavedMove_Coastal::PrepMoveFor(ACharacter* C)
 {
-    FSavedMove_Character::Clear();
+    FSavedMove_Character::PrepMoveFor(C);
 
-    // reset flags
-    Saved_bWantsToSprint = 0u;
+    UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(
+        C->GetCharacterMovement());
+
+    CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
 }
 
-uint8 UCoastalCharacterMovementComponent::FSavedMove_Coastal::GetCompressedFlags() const
+uint8 FSavedMove_Coastal::GetCompressedFlags() const
 {
     uint8 Result = FSavedMove_Character::GetCompressedFlags();
 
@@ -47,65 +66,40 @@ uint8 UCoastalCharacterMovementComponent::FSavedMove_Coastal::GetCompressedFlags
     return Result;
 }
 
-void UCoastalCharacterMovementComponent::FSavedMove_Coastal::SetMoveFor(
-    ACharacter* C, float InDeltaTime, FVector const& NewAccel, FNetworkPredictionData_Client_Character& ClientData)
-{
-    FSavedMove_Character::SetMoveFor(C, InDeltaTime, NewAccel, ClientData);
-
-    UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(
-        C->GetCharacterMovement());
-
-    Saved_bWantsToSprint = CharacterMovement->Safe_bWantsToSprint;
-}
-
-void UCoastalCharacterMovementComponent::FSavedMove_Coastal::PrepMoveFor(ACharacter* C)
-{
-    FSavedMove_Character::PrepMoveFor(C);
-
-    UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(
-        C->GetCharacterMovement());
-
-    CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
-}
-
 #pragma endregion
 
-#pragma region NetworkPredictionData_Client
+#pragma region FNetworkPredictionData_Client
 
-UCoastalCharacterMovementComponent::FNetworkPredictionData_Client_Coastal::FNetworkPredictionData_Client_Coastal(
+FNetworkPredictionData_Client_Coastal::FNetworkPredictionData_Client_Coastal(
     const UCharacterMovementComponent& ClientMovement)
     : FNetworkPredictionData_Client_Character(ClientMovement)
 {
 }
 
-FSavedMovePtr UCoastalCharacterMovementComponent::FNetworkPredictionData_Client_Coastal::AllocateNewMove()
+FSavedMovePtr FNetworkPredictionData_Client_Coastal::AllocateNewMove()
 {
-    return FSavedMovePtr(new FSavedMove_Coastal());
+    return MakeShared<FSavedMove_Coastal>();
 }
 
 #pragma endregion
 
-#pragma region CharacterMovementComponent
+#pragma region UCharacterMovementComponent
 
 UCoastalCharacterMovementComponent::UCoastalCharacterMovementComponent()
 {
     BrakingFrictionFactor = 1.f;  // true drag
+
     DefaultCustomMovementMode = CMOVE_Skate;
 }
 
 FNetworkPredictionData_Client* UCoastalCharacterMovementComponent::GetPredictionData_Client() const
 {
     check(PawnOwner != nullptr);
-
     if (ClientPredictionData == nullptr)
     {
         UCoastalCharacterMovementComponent* MutableThis = const_cast<UCoastalCharacterMovementComponent*>(this);
 
         MutableThis->ClientPredictionData = new FNetworkPredictionData_Client_Coastal(*this);
-
-        // parameters for prediction
-        MutableThis->ClientPredictionData->MaxSmoothNetUpdateDist = 92.f;
-        MutableThis->ClientPredictionData->NoSmoothNetUpdateDist = 140.f;
     }
     return ClientPredictionData;
 }
@@ -115,16 +109,42 @@ void UCoastalCharacterMovementComponent::InitializeComponent()
     Super::InitializeComponent();
 
     CoastalCharacterOwner = Cast<ACoastalCharacter>(GetOwner());
-    Stored_Walk_MaxSpeed = MaxWalkSpeed;
 }
 
-void UCoastalCharacterMovementComponent::SetDefaultMovementMode()
+void UCoastalCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 {
-    Super::SetDefaultMovementMode();
+    Super::UpdateFromCompressedFlags(Flags);
 
-    if (DefaultLandMovementMode == MOVE_Custom)
+    Safe_bWantsToSprint = static_cast<bool>(Flags & FSavedMove_Character::FLAG_Custom_0);
+}
+
+void UCoastalCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode,
+                                                               uint8 PreviousCustomMode)
+{
+    Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+
+    if (PreviousMovementMode == MOVE_Custom && PreviousCustomMode == CMOVE_Skate)
     {
-        SetMovementMode(MOVE_Custom, DefaultCustomMovementMode);
+        ExitSkate();
+    }
+    else if (IsCustomMovementMode(CMOVE_Skate))
+    {
+        EnterSkate();
+    }
+}
+
+void UCoastalCharacterMovementComponent::PhysCustom(float DeltaTime, int32 Iterations)
+{
+    Super::PhysCustom(DeltaTime, Iterations);
+
+    switch (CustomMovementMode)
+    {
+        case CMOVE_Skate:
+            PhysSkate(DeltaTime, Iterations);
+            break;
+        default:
+            UE_LOG(LogCoastal, Fatal, TEXT("Invalid Movement Mode"));
+            break;
     }
 }
 
@@ -136,16 +156,9 @@ bool UCoastalCharacterMovementComponent::CanAttemptJump() const
 
 float UCoastalCharacterMovementComponent::GetMaxSpeed() const
 {
-    if (Safe_bWantsToSprint)
+    if (MovementMode == MOVE_Walking)
     {
-        if (MovementMode == MOVE_Walking)
-        {
-            return Walk_SprintMaxSpeed;
-        }
-        if (MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Skate)
-        {
-            return Skate_SprintMaxSpeed;
-        }
+        return Safe_bWantsToSprint ? Walk_SprintMaxSpeed : MaxWalkSpeed;
     }
 
     if (MovementMode != MOVE_Custom)
@@ -156,7 +169,7 @@ float UCoastalCharacterMovementComponent::GetMaxSpeed() const
     switch (CustomMovementMode)
     {
         case CMOVE_Skate:
-            return Skate_MaxSpeed;
+            return Safe_bWantsToSprint ? Skate_SprintMaxSpeed : Skate_MaxSpeed;
         default:
             UE_LOG(LogTemp, Error, TEXT("Invalid Movement Mode"))
             return -1.f;
@@ -175,7 +188,7 @@ float UCoastalCharacterMovementComponent::GetMaxAcceleration() const
         case CMOVE_Skate:
             return Skate_MaxAcceleration;
         default:
-            UE_LOG(LogTemp, Error, TEXT("Invalid Movement Mode"))
+            UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"))
             return -1.f;
     }
 }
@@ -192,63 +205,18 @@ float UCoastalCharacterMovementComponent::GetMaxBrakingDeceleration() const
         case CMOVE_Skate:
             return Skate_BrakingDeceleration;
         default:
-            UE_LOG(LogTemp, Error, TEXT("Invalid Movement Mode"))
+            UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"))
             return -1.f;
     }
 }
 
-void UCoastalCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
+void UCoastalCharacterMovementComponent::SetDefaultMovementMode()
 {
-    Super::UpdateFromCompressedFlags(Flags);
+    Super::SetDefaultMovementMode();
 
-    Safe_bWantsToSprint = static_cast<bool>(Flags & FSavedMove_Character::FLAG_Custom_0);
-}
-
-void UCoastalCharacterMovementComponent::PhysCustom(float DeltaTime, int32 Iterations)
-{
-    Super::PhysCustom(DeltaTime, Iterations);
-
-    switch (CustomMovementMode)
+    if (DefaultLandMovementMode == MOVE_Custom)
     {
-        case CMOVE_Skate:
-            PhysSkate(DeltaTime, Iterations);
-            break;
-        default:
-            UE_LOG(LogCoastal, Fatal, TEXT("Invalid Movement Mode"));
-            break;
-    }
-}
-
-void UCoastalCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation,
-                                                           const FVector& OldVelocity)
-{
-    Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
-
-    if (MovementMode == MOVE_Walking)
-    {
-        if (Safe_bWantsToSprint)
-        {
-            MaxWalkSpeed = Walk_SprintMaxSpeed;
-        }
-        else
-        {
-            MaxWalkSpeed = Stored_Walk_MaxSpeed;
-        }
-    }
-}
-
-void UCoastalCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode,
-                                                               uint8 PreviousCustomMode)
-{
-    Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
-
-    if (PreviousMovementMode == MOVE_Custom && PreviousCustomMode == CMOVE_Skate)
-    {
-        ExitSkate();
-    }
-    else if (IsCustomMovementMode(CMOVE_Skate))
-    {
-        EnterSkate();
+        SetMovementMode(MOVE_Custom, DefaultCustomMovementMode);
     }
 }
 
@@ -275,8 +243,7 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
         return;
     }
 
-    // do not double-count additive root motion
-    RestorePreAdditiveRootMotionVelocity();
+    bJustTeleported = false;
 
     std::optional<FVector> OptionHitNormal = GetHitNormalCharacterEquipment();
     FVector HitNormal = OptionHitNormal.has_value() ? OptionHitNormal.value() : FVector::UpVector;
@@ -292,7 +259,6 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
 
     ApplyRootMotionToVelocity(DeltaTime);
     Iterations++;
-    bJustTeleported = false;
 
     // flatten forward vector onto hit surface by removing component that points along normal
     FVector Forward = Velocity.IsNearlyZero() ? GetForwardVector() : Velocity;
@@ -324,6 +290,8 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
         Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / DeltaTime;
     }
 }
+
+// Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick; // v = dx / dt
 
 std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacter() const
 {
