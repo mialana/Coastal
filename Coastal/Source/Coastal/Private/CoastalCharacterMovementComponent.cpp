@@ -25,8 +25,7 @@ void FSavedMove_Coastal::SetMoveFor(ACharacter* C, float InDeltaTime, FVector co
 {
     FSavedMove_Character::SetMoveFor(C, InDeltaTime, NewAccel, ClientData);
 
-    UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(
-        C->GetCharacterMovement());
+    UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(C->GetCharacterMovement());
 
     Saved_bWantsToSprint = CharacterMovement->Safe_bWantsToSprint;
 }
@@ -48,8 +47,7 @@ void FSavedMove_Coastal::PrepMoveFor(ACharacter* C)
 {
     FSavedMove_Character::PrepMoveFor(C);
 
-    UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(
-        C->GetCharacterMovement());
+    UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(C->GetCharacterMovement());
 
     CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
 }
@@ -70,8 +68,7 @@ uint8 FSavedMove_Coastal::GetCompressedFlags() const
 
 #pragma region FNetworkPredictionData_Client
 
-FNetworkPredictionData_Client_Coastal::FNetworkPredictionData_Client_Coastal(
-    const UCharacterMovementComponent& ClientMovement)
+FNetworkPredictionData_Client_Coastal::FNetworkPredictionData_Client_Coastal(const UCharacterMovementComponent& ClientMovement)
     : FNetworkPredictionData_Client_Character(ClientMovement)
 {
 }
@@ -118,8 +115,7 @@ void UCoastalCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
     Safe_bWantsToSprint = static_cast<bool>(Flags & FSavedMove_Character::FLAG_Custom_0);
 }
 
-void UCoastalCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode,
-                                                               uint8 PreviousCustomMode)
+void UCoastalCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
 {
     Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
 
@@ -150,8 +146,7 @@ void UCoastalCharacterMovementComponent::PhysCustom(float DeltaTime, int32 Itera
 
 bool UCoastalCharacterMovementComponent::CanAttemptJump() const
 {
-    return Super::CanAttemptJump()
-           || (IsCustomMovementMode(CMOVE_Skate) && GetHitNormalCharacterEquipment().has_value());
+    return Super::CanAttemptJump() || (IsCustomMovementMode(CMOVE_Skate) && GetHitNormalCharacterEquipment().has_value());
 }
 
 float UCoastalCharacterMovementComponent::GetMaxSpeed() const
@@ -228,8 +223,7 @@ void UCoastalCharacterMovementComponent::EnterSkate() const
 void UCoastalCharacterMovementComponent::ExitSkate()
 {
     CoastalCharacterOwner->GetEquipmentMeshComponent()->SetVisibility(false);
-    FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(),
-                                                    FVector::UpVector)
+    FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(), FVector::UpVector)
                             .ToQuat();
     FHitResult HitResult;
     SafeMoveUpdatedComponent(FVector::ZeroVector, NewRotation, true, HitResult);
@@ -297,8 +291,7 @@ std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacter
 {
     FVector Start = UpdatedComponent->GetComponentLocation();
     FVector End = Start
-                  + CoastalCharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2.f
-                        * FVector::DownVector;
+                  + CoastalCharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2.f * FVector::DownVector;
 
     static const FName PROFILE_NAME = TEXT("BlockAll");
 
@@ -318,6 +311,11 @@ std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacter
     UCoastalEquipmentMeshComponent* Equipment = CoastalCharacterOwner->GetEquipmentMeshComponent();
 
     return Equipment->LineTraceCombined(CoastalCharacterOwner->GetIgnoreCharacterParams());
+}
+
+bool UCoastalCharacterMovementComponent::IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const
+{
+    return MovementMode == MOVE_Custom && CustomMovementMode == InCustomMovementMode;
 }
 
 void UCoastalCharacterMovementComponent::SprintPressed()
@@ -342,11 +340,6 @@ void UCoastalCharacterMovementComponent::SkatePressed()
         SetMovementMode(MOVE_Custom, CMOVE_Skate);
         DefaultLandMovementMode = MOVE_Custom;
     }
-}
-
-bool UCoastalCharacterMovementComponent::IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const
-{
-    return MovementMode == MOVE_Custom && CustomMovementMode == InCustomMovementMode;
 }
 
 #pragma endregion
