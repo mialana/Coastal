@@ -158,7 +158,7 @@ float UCoastalCharacterMovementComponent::GetMaxSpeed() const
 {
     if (MovementMode == MOVE_Walking)
     {
-        return Safe_bWantsToSprint ? Walk_SprintMaxSpeed : MaxWalkSpeed;
+        return Safe_bWantsToSprint ? MaxSpeedSprintWalking : MaxWalkSpeed;
     }
 
     if (MovementMode != MOVE_Custom)
@@ -169,7 +169,7 @@ float UCoastalCharacterMovementComponent::GetMaxSpeed() const
     switch (CustomMovementMode)
     {
         case CMOVE_Skate:
-            return Safe_bWantsToSprint ? Skate_SprintMaxSpeed : Skate_MaxSpeed;
+            return Safe_bWantsToSprint ? MaxSpeedSprintSkating : MaxSpeedSkating;
         default:
             UE_LOG(LogTemp, Error, TEXT("Invalid Movement Mode"))
             return -1.f;
@@ -186,7 +186,7 @@ float UCoastalCharacterMovementComponent::GetMaxAcceleration() const
     switch (CustomMovementMode)
     {
         case CMOVE_Skate:
-            return Skate_MaxAcceleration;
+            return MaxAccelerationSkating;
         default:
             UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"))
             return -1.f;
@@ -203,7 +203,7 @@ float UCoastalCharacterMovementComponent::GetMaxBrakingDeceleration() const
     switch (CustomMovementMode)
     {
         case CMOVE_Skate:
-            return Skate_BrakingDeceleration;
+            return BrakingDecelerationSkating;
         default:
             UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"))
             return -1.f;
@@ -254,7 +254,7 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
     // calculate effects of friction on velocity and acceleration
     if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
     {
-        CalcVelocity(DeltaTime, Skate_FrictionFactor, false, GetMaxBrakingDeceleration());
+        CalcVelocity(DeltaTime, FrictionFactorSkating, false, GetMaxBrakingDeceleration());
     }
 
     ApplyRootMotionToVelocity(DeltaTime);

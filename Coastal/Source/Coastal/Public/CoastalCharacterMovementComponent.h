@@ -91,13 +91,13 @@ public:
     UPROPERTY(Category = "Character Movement: MovementMode", EditAnywhere, BlueprintReadWrite)
     TEnumAsByte<ECustomMovementMode> DefaultCustomMovementMode;
 
-    UPROPERTY(Category = "Character Movement: Walking", EditDefaultsOnly) float Walk_SprintMaxSpeed = 1000.f;
+    UPROPERTY(Category = "Character Movement: Walking", EditDefaultsOnly) float MaxSpeedSprintWalking = 1000.f;
 
-    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_MaxSpeed = 1000.f;
-    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_SprintMaxSpeed = 1500.f;
-    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_FrictionFactor = 0.5f;
-    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_MaxAcceleration = 300.f;
-    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_BrakingDeceleration = 100.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSkating = 1000.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSprintSkating = 1500.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxAccelerationSkating = 300.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float FrictionFactorSkating = 0.5f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float BrakingDecelerationSkating = 100.f;
 
     // transient
     UPROPERTY(Transient) ACoastalCharacter* CoastalCharacterOwner;
