@@ -79,23 +79,25 @@ private:
     std::optional<FVector> GetHitNormalCharacterEquipment() const;
 
 public:
-    UFUNCTION(BlueprintPure) bool IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const;
+    UFUNCTION(BlueprintPure, Category = "Pawn|Components|CharacterMovement|Coastal")
+    bool IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const;
 
-    UFUNCTION(BlueprintCallable) void SprintPressed();
-    UFUNCTION(BlueprintCallable) void SprintReleased();
+    UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement|Coastal") void SprintPressed();
+    UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement|Coastal") void SprintReleased();
 
-    UFUNCTION(BlueprintCallable) void SkatePressed();
+    UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement|Coastal") void SkatePressed();
 
 public:
     UPROPERTY(Category = "Character Movement: MovementMode", EditAnywhere, BlueprintReadWrite)
     TEnumAsByte<ECustomMovementMode> DefaultCustomMovementMode;
 
-    UPROPERTY(EditDefaultsOnly) float Walk_SprintMaxSpeed = 1000.f;
-    UPROPERTY(EditDefaultsOnly) float Skate_MaxSpeed = 1000.f;
-    UPROPERTY(EditDefaultsOnly) float Skate_SprintMaxSpeed = 1500.f;
-    UPROPERTY(EditDefaultsOnly) float Skate_FrictionFactor = 0.5f;
-    UPROPERTY(EditDefaultsOnly) float Skate_MaxAcceleration = 300.f;
-    UPROPERTY(EditDefaultsOnly) float Skate_BrakingDeceleration = 100.f;
+    UPROPERTY(Category = "Character Movement: Walking", EditDefaultsOnly) float Walk_SprintMaxSpeed = 1000.f;
+
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_MaxSpeed = 1000.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_SprintMaxSpeed = 1500.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_FrictionFactor = 0.5f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_MaxAcceleration = 300.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float Skate_BrakingDeceleration = 100.f;
 
     // transient
     UPROPERTY(Transient) ACoastalCharacter* CoastalCharacterOwner;

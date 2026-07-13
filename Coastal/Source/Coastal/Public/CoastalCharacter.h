@@ -58,6 +58,8 @@ public:
     ACoastalCharacter(const FObjectInitializer& ObjectInitializer);
 
 protected:
+    virtual void PostInitializeComponents() override;
+
     /** Initialize input action bindings */
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 

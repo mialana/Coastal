@@ -58,6 +58,12 @@ ACoastalCharacter::ACoastalCharacter(const FObjectInitializer& ObjectInitializer
     EquipmentMeshComponent->SetupAttachment(RootComponent);
 }
 
+void ACoastalCharacter::PostInitializeComponents()
+{
+    Super::PostInitializeComponents();
+    EquipmentMeshComponent->SetVisibility(false);
+}
+
 void ACoastalCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     // Set up action bindings
@@ -76,10 +82,7 @@ void ACoastalCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
     }
     else
     {
-        UE_LOG(LogCoastalCharacter, Error,
-               TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input "
-                    "system. If you intend to use the legacy system, then you will need to update this C++ file."),
-               *GetNameSafe(this));
+        UE_LOG(LogCoastalCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component!"), *GetNameSafe(this));
     }
 }
 

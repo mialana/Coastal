@@ -8,13 +8,6 @@
 
 UCoastalEquipmentMeshComponent::UCoastalEquipmentMeshComponent() {}
 
-void UCoastalEquipmentMeshComponent::InitializeComponent()
-{
-    Super::InitializeComponent();
-
-    SetVisibility(false);
-}
-
 void UCoastalEquipmentMeshComponent::BeginPlay()
 {
     Super::BeginPlay();
@@ -66,8 +59,7 @@ FVector UCoastalEquipmentMeshComponent::GetBackRightBoneLocation() const
     return Location;
 }
 
-std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontLeft(
-    const FCollisionQueryParams& IgnoreParams) const
+std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontLeft(const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetFrontLeftBoneLocation();
     const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
@@ -81,8 +73,7 @@ std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontLeft(
     return std::nullopt;  // no hit occurred
 }
 
-std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontRight(
-    const FCollisionQueryParams& IgnoreParams) const
+std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontRight(const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetFrontRightBoneLocation();
     const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
@@ -96,8 +87,7 @@ std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontRight(
     return std::nullopt;  // no hit occurred
 }
 
-std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackLeft(
-    const FCollisionQueryParams& IgnoreParams) const
+std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackLeft(const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetBackLeftBoneLocation();
     const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
@@ -111,8 +101,7 @@ std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackLeft(
     return std::nullopt;  // no hit occurred
 }
 
-std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackRight(
-    const FCollisionQueryParams& IgnoreParams) const
+std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackRight(const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetBackRightBoneLocation();
     const FVector End = Start + ScaledHalfHeight * FVector::DownVector;

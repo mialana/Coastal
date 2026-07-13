@@ -16,25 +16,16 @@ class COASTAL_API UCoastalEquipmentMeshComponent : public USkeletalMeshComponent
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true")) FName FrontLeftBoneName;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true")) FName FrontRightBoneName;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true")) FName BackLeftBoneName;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true")) FName BackRightBoneName;
-
-    UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true")) float ScaledHalfHeight;
-
 public:
     UCoastalEquipmentMeshComponent();
-
-    virtual void InitializeComponent() override;
 
     virtual void BeginPlay() override;
 
 public:
-    UFUNCTION(BlueprintCallable) FVector GetFrontLeftBoneLocation() const;
-    UFUNCTION(BlueprintCallable) FVector GetFrontRightBoneLocation() const;
-    UFUNCTION(BlueprintCallable) FVector GetBackLeftBoneLocation() const;
-    UFUNCTION(BlueprintCallable) FVector GetBackRightBoneLocation() const;
+    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal") FVector GetFrontLeftBoneLocation() const;
+    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal") FVector GetFrontRightBoneLocation() const;
+    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal") FVector GetBackLeftBoneLocation() const;
+    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal") FVector GetBackRightBoneLocation() const;
 
     std::optional<FHitResult> LineTraceFrontLeft(const FCollisionQueryParams& IgnoreParams) const;
     std::optional<FHitResult> LineTraceFrontRight(const FCollisionQueryParams& IgnoreParams) const;
@@ -42,4 +33,12 @@ public:
     std::optional<FHitResult> LineTraceBackRight(const FCollisionQueryParams& IgnoreParams) const;
 
     std::optional<FVector> LineTraceCombined(const FCollisionQueryParams& IgnoreParams) const;
+
+public:
+    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName FrontLeftBoneName;
+    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName FrontRightBoneName;
+    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName BackLeftBoneName;
+    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName BackRightBoneName;
+
+    UPROPERTY(Transient) float ScaledHalfHeight;
 };
