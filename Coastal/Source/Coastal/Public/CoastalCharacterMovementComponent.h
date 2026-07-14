@@ -17,7 +17,7 @@ enum ECustomMovementMode
     CMOVE_MAX UMETA(Hidden),
 };
 
-UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = ("Custom"), meta = (BlueprintSpawnableComponent))
 
 class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovementComponent
 {

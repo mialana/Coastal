@@ -266,30 +266,20 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
         RemainingTime -= TimeTick;
 
         // update velocity as a function of gravity
-        const FVector GravityVector = GetGravityZ() * FVector::UpVector;
-        FVector PhysicsAcceleration;  // will store the current physically-based (real) acceleration
+        Velocity += GetGravityZ() * FVector::UpVector * TimeTick;  // v = v + at
+
+        CalcVelocity(TimeTick, FrictionSkating, false, GetMaxBrakingDeceleration());
 
         // compute up vector as either the current up vector or the new hit normal
         FVector Up = UpdatedComponent->GetUpVector();
         if (std::optional<FVector> OptionHitNormal = GetHitNormalCharacterEquipment(); OptionHitNormal.has_value())
         {
-            // if hit normal did not change enough, keep the same hit normal
-            if (FVector HitNormal = OptionHitNormal.value(); !HitNormal.Cross(Up).IsNearlyZero(0.01f))
+            // if hit normal did not change enough, keep the hit normal as the current up vector
+            if (FVector HitNormal = OptionHitNormal.value(); !HitNormal.Cross(Up).IsNearlyZero(0.001f))
             {
                 Up = HitNormal;
             }
-            // when on a surface, the acceleration is impacted by the normal force
-            PhysicsAcceleration = FVector::VectorPlaneProject(GravityVector, Up);
         }
-        else
-        {
-            // when in air, acceleration is just full gravity
-            PhysicsAcceleration = GravityVector;
-        }
-
-        Velocity += PhysicsAcceleration * TimeTick;  // v = v + at
-
-        CalcVelocity(TimeTick, FrictionSkating, false, GetMaxBrakingDeceleration());
 
         // compute displacement during this tick
         const FVector Displacement = TimeTick * Velocity;  // dx = v * dt

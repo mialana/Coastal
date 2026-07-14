@@ -67,7 +67,7 @@ std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontLeft(con
     FHitResult HitResult;
     if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
     {
-        LINE(Start, End, FColor::Orange);
+        LINE(Start, End, FColor::Yellow);
         return std::make_optional<FHitResult>(HitResult);
     }
     return std::nullopt;  // no hit occurred
@@ -81,7 +81,7 @@ std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontRight(co
     FHitResult HitResult;
     if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
     {
-        LINE(Start, End, FColor::Purple);
+        LINE(Start, End, FColor::Green);
         return std::make_optional<FHitResult>(HitResult);
     }
     return std::nullopt;  // no hit occurred
