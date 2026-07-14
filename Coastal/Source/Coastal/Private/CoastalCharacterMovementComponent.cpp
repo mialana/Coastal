@@ -265,17 +265,9 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
         const float TimeTick = GetSimulationTimeStep(RemainingTime, Iterations);
         RemainingTime -= TimeTick;
 
-        // update velocity as a function of acceleration
-        Velocity += GetGravityZ() * FVector::UpVector * TimeTick;
-
-        CalcVelocity(TimeTick, FrictionSkating, false, GetMaxBrakingDeceleration());
-
-        // compute displacement during this tick
-        const FVector Displacement = TimeTick * Velocity;  // dx = v * dt
-        if (Displacement.IsNearlyZero())
-        {
-            RemainingTime = 0.f;  // make sure this is the last iteration
-        }
+        // update velocity as a function of gravity
+        const FVector GravityVector = GetGravityZ() * FVector::UpVector;
+        FVector PhysicsAcceleration;  // will store the current physically-based (real) acceleration
 
         // compute up vector as either the current up vector or the new hit normal
         FVector Up = UpdatedComponent->GetUpVector();
@@ -286,10 +278,28 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
             {
                 Up = HitNormal;
             }
+            // when on a surface, the acceleration is impacted by the normal force
+            PhysicsAcceleration = FVector::VectorPlaneProject(GravityVector, Up);
+        }
+        else
+        {
+            // when in air, acceleration is just full gravity
+            PhysicsAcceleration = GravityVector;
+        }
+
+        Velocity += PhysicsAcceleration * TimeTick;  // v = v + at
+
+        CalcVelocity(TimeTick, FrictionSkating, false, GetMaxBrakingDeceleration());
+
+        // compute displacement during this tick
+        const FVector Displacement = TimeTick * Velocity;  // dx = v * dt
+        if (Displacement.IsNearlyZero())
+        {
+            RemainingTime = 0.f;  // make sure this is the last iteration
         }
 
         // do not use the z-component when computing whether we should substitute forward vector for velocity
-        FVector Velocity2D = FVector(Velocity.X, Velocity.Y, 0.f);
+        const FVector Velocity2D = FVector(Velocity.X, Velocity.Y, 0.f);
         const FVector Forward = Velocity2D.SizeSquared() > BRAKE_TO_STOP_VELOCITY_SQUARED
                                     ? Velocity
                                     : UpdatedComponent->GetForwardVector();
@@ -303,7 +313,6 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
             const FQuat ProjectedRotation = FRotationMatrix::MakeFromXZ(ProjectedForward.GetSafeNormal(), Up).ToQuat();
             Rotation = ProjectedRotation;
         }
-        // TODO: adjust velocity given adjusted up and forward
 
         // save location before movement
         const FVector OldLocation = UpdatedComponent->GetComponentLocation();
