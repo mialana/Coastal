@@ -265,10 +265,17 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
         const float TimeTick = GetSimulationTimeStep(RemainingTime, Iterations);
         RemainingTime -= TimeTick;
 
-        // update velocity as a function of gravity
+        // update velocity as a function of gravity. update velocity rather than acceleration to keep acceleration reserved for user input
         Velocity += GetGravityZ() * FVector::UpVector * TimeTick;  // v = v + at
 
         CalcVelocity(TimeTick, FrictionSkating, false, GetMaxBrakingDeceleration());
+
+        // compute displacement during this tick
+        const FVector Displacement = TimeTick * Velocity;  // dx = v * dt
+        if (Displacement.IsNearlyZero())
+        {
+            RemainingTime = 0.f;  // make sure this is the last iteration
+        }
 
         // compute up vector as either the current up vector or the new hit normal
         FVector Up = UpdatedComponent->GetUpVector();
@@ -281,28 +288,17 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
             }
         }
 
-        // compute displacement during this tick
-        const FVector Displacement = TimeTick * Velocity;  // dx = v * dt
-        if (Displacement.IsNearlyZero())
-        {
-            RemainingTime = 0.f;  // make sure this is the last iteration
-        }
-
         // do not use the z-component when computing whether we should substitute forward vector for velocity
         const FVector Velocity2D = FVector(Velocity.X, Velocity.Y, 0.f);
-        const FVector Forward = Velocity2D.SizeSquared() > BRAKE_TO_STOP_VELOCITY_SQUARED
-                                    ? Velocity
-                                    : UpdatedComponent->GetForwardVector();
+        const FVector Forward = Velocity2D.SizeSquared() < BRAKE_TO_STOP_VELOCITY_SQUARED ? UpdatedComponent->GetForwardVector()
+                                                                                          : Velocity;
         // adjust forward vector onto the desired plane by removing component that points along up
         const FVector ProjectedForward = FVector::VectorPlaneProject(Forward, Up);
 
         // compute rotation from desired forward and desired up
-        FQuat Rotation = UpdatedComponent->GetComponentQuat();
-        if (!ProjectedForward.IsNearlyZero())
-        {
-            const FQuat ProjectedRotation = FRotationMatrix::MakeFromXZ(ProjectedForward.GetSafeNormal(), Up).ToQuat();
-            Rotation = ProjectedRotation;
-        }
+        const FQuat Rotation = ProjectedForward.IsNearlyZero()
+                                   ? UpdatedComponent->GetComponentQuat()
+                                   : FRotationMatrix::MakeFromXZ(ProjectedForward.GetSafeNormal(), Up).ToQuat();
 
         // save location before movement
         const FVector OldLocation = UpdatedComponent->GetComponentLocation();
