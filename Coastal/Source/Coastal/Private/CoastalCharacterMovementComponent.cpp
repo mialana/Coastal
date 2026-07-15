@@ -21,6 +21,7 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::Clear()
 
     // reset flags
     Saved_bWantsToSprint = 0u;
+    Saved_bHasHitNormalCharacterEquipment = 0u;
     Saved_PreviousMovementMode = MOVE_None;
     Saved_PreviousCustomMovementMode = CMOVE_None;
 }
@@ -34,6 +35,7 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::SetMoveFor(ACharact
     UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(C->GetCharacterMovement());
 
     Saved_bWantsToSprint = CharacterMovement->Safe_bWantsToSprint;
+    Saved_bHasHitNormalCharacterEquipment = CharacterMovement->Safe_bHasHitNormalCharacterEquipment;
     Saved_PreviousMovementMode = CharacterMovement->Safe_PreviousMovementMode;
     Saved_PreviousCustomMovementMode = CharacterMovement->Safe_PreviousCustomMovementMode;
 }
@@ -44,6 +46,10 @@ bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(cons
     FSavedMove_Coastal* NewCoastalMove = static_cast<FSavedMove_Coastal*>(NewMove.Get());
 
     if (Saved_bWantsToSprint != NewCoastalMove->Saved_bWantsToSprint)
+    {
+        return false;
+    }
+    if (Saved_bHasHitNormalCharacterEquipment != NewCoastalMove->Saved_bHasHitNormalCharacterEquipment)
     {
         return false;
     }
@@ -67,6 +73,7 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::PrepMoveFor(ACharac
     UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(C->GetCharacterMovement());
 
     CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
+    CharacterMovement->Safe_bHasHitNormalCharacterEquipment = Saved_bHasHitNormalCharacterEquipment;
     CharacterMovement->Safe_PreviousMovementMode = Saved_PreviousMovementMode;
     CharacterMovement->Safe_PreviousCustomMovementMode = Saved_PreviousCustomMovementMode;
 }
@@ -167,9 +174,30 @@ void UCoastalCharacterMovementComponent::PhysCustom(float DeltaTime, int32 Itera
     }
 }
 
+bool UCoastalCharacterMovementComponent::DoJump(bool bReplayingMoves, float DeltaTime)
+{
+    if (MovementMode != MOVE_Custom)
+    {
+        return Super::DoJump(bReplayingMoves, DeltaTime);
+    }
+    FVector HitNormal;
+    if (CharacterOwner && IsCustomMovementMode(CMOVE_Skate) && GetHitNormalCharacterEquipment(HitNormal))
+    {
+        // Don't jump if we can't move up/down
+        if (!bConstrainToPlane || !FMath::IsNearlyEqual(FMath::Abs(GetGravitySpaceZ(PlaneConstraintNormal)), 1.f))
+        {
+            const FVector JumpDirection = -HitNormal;
+            Velocity = FVector::VectorPlaneProject(Velocity, JumpDirection) - JumpZVelocity * JumpDirection;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool UCoastalCharacterMovementComponent::CanAttemptJump() const
 {
-    return Super::CanAttemptJump() || (IsCustomMovementMode(CMOVE_Skate) && GetHitNormalCharacterEquipment().has_value());
+    return Super::CanAttemptJump();
 }
 
 float UCoastalCharacterMovementComponent::GetMaxSpeed() const
@@ -300,20 +328,21 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
 
         // compute up vector as either the current up vector or the new hit normal
         FVector Up = UpdatedComponent->GetUpVector();
-        if (std::optional<FVector> OptionHitNormal = GetHitNormalCharacterEquipment(); OptionHitNormal.has_value())
+        FVector HitNormal;
+        // if hit normal and hit normal changed enough, keep the hit normal as the current up vector
+        if (GetHitNormalCharacterEquipment(HitNormal))
         {
-            // if hit normal did not change enough, keep the hit normal as the current up vector
-            if (FVector HitNormal = OptionHitNormal.value(); !HitNormal.Cross(Up).IsNearlyZero(0.001f))
+            Safe_bHasHitNormalCharacterEquipment = true;
+            if (!HitNormal.Cross(Up).IsNearlyZero(0.001f))
             {
                 Up = HitNormal;
             }
         }
         else
         {
-            // start falling
-            SetMovementMode(MOVE_Falling);
-            StartNewPhysics(RemainingTime, Iterations);
-            return;
+            Safe_bHasHitNormalCharacterEquipment = false;
+            // do not allow user input acceleration while character equipment has no hit normal
+            Acceleration = FVector::ZeroVector;
         }
 
         // do not use the z-component when computing whether we should substitute forward vector for velocity
@@ -350,30 +379,11 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
     }
 }
 
-std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacter() const
-{
-    FVector Start = UpdatedComponent->GetComponentLocation();
-    FVector End = Start
-                  + CoastalCharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2.f * FVector::DownVector;
-
-    static const FName PROFILE_NAME = TEXT("BlockAll");
-
-    LINE(Start, End, FColor::Purple);  // debug trace
-
-    FHitResult HitResult;
-    if (GetWorld()->LineTraceSingleByProfile(HitResult, Start, End, PROFILE_NAME,
-                                             CoastalCharacterOwner->GetIgnoreCharacterParams()))
-    {
-        return std::make_optional<FVector>(HitResult.ImpactNormal);
-    }
-    return std::nullopt;  // no hit occurred
-}
-
-std::optional<FVector> UCoastalCharacterMovementComponent::GetHitNormalCharacterEquipment() const
+bool UCoastalCharacterMovementComponent::GetHitNormalCharacterEquipment(FVector& HitNormal) const
 {
     UCoastalEquipmentMeshComponent* Equipment = CoastalCharacterOwner->GetEquipmentMeshComponent();
 
-    return Equipment->LineTraceCombined(CoastalCharacterOwner->GetIgnoreCharacterParams());
+    return Equipment->LineTraceCombined(HitNormal, CoastalCharacterOwner->GetIgnoreCharacterParams());
 }
 
 bool UCoastalCharacterMovementComponent::IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const

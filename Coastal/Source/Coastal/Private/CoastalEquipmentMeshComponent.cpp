@@ -3,6 +3,7 @@
 #include "CoastalEquipmentMeshComponent.h"
 
 #include "AnimationRuntime.h"
+#include "AudioMixerChannel.h"
 #include "Coastal.h"
 #include "Engine/SkeletalMesh.h"
 
@@ -15,147 +16,97 @@ void UCoastalEquipmentMeshComponent::BeginPlay()
     ScaledHalfHeight = Bounds.BoxExtent.Z;
 }
 
-FVector UCoastalEquipmentMeshComponent::GetFrontLeftBoneLocation() const
+FName UCoastalEquipmentMeshComponent::GetAxisBoneName(ECoastalEquipmentAxisBone AxisBone) const
 {
-    FVector Location = GetBoneLocation(FrontLeftBoneName, EBoneSpaces::WorldSpace);
+    switch (AxisBone)
+    {
+        case ECoastalEquipmentAxisBone::FrontLeft:
+            return FrontLeftAxisBoneName;
+        case ECoastalEquipmentAxisBone::FrontRight:
+            return FrontRightAxisBoneName;
+        case ECoastalEquipmentAxisBone::BackLeft:
+            return BackLeftAxisBoneName;
+        case ECoastalEquipmentAxisBone::BackRight:
+            return BackRightAxisBoneName;
+        default:
+            checkNoEntry();
+            return NAME_None;
+    }
+}
+
+FVector UCoastalEquipmentMeshComponent::GetAxisBoneLocation(ECoastalEquipmentAxisBone AxisBone) const
+{
+    const FVector Location = GetBoneLocation(GetAxisBoneName(AxisBone), EBoneSpaces::WorldSpace);
     if (Location.IsZero())
     {
-        UE_LOG(LogCoastal, Error, TEXT("Equipment front left bone name was not set properly."));
+        UE_LOG(LogCoastal, Error, TEXT("Equipment axis bone name not set properly: '%s'"), *UEnum::GetValueAsString(AxisBone));
     }
-
     return Location;
 }
 
-FVector UCoastalEquipmentMeshComponent::GetFrontRightBoneLocation() const
+bool UCoastalEquipmentMeshComponent::LineTraceAxisBone(ECoastalEquipmentAxisBone AxisBone, FHitResult& HitResult,
+                                                       const FCollisionQueryParams& IgnoreParams) const
 {
-    FVector Location = GetBoneLocation(FrontRightBoneName, EBoneSpaces::WorldSpace);
-    if (Location.IsZero())
-    {
-        UE_LOG(LogCoastal, Error, TEXT("Equipment front right bone name was not set properly."));
-    }
-
-    return Location;
-}
-
-FVector UCoastalEquipmentMeshComponent::GetBackLeftBoneLocation() const
-{
-    FVector Location = GetBoneLocation(BackLeftBoneName, EBoneSpaces::WorldSpace);
-    if (Location.IsZero())
-    {
-        UE_LOG(LogCoastal, Error, TEXT("Equipment back left bone name was not set properly."));
-    }
-
-    return Location;
-}
-
-FVector UCoastalEquipmentMeshComponent::GetBackRightBoneLocation() const
-{
-    FVector Location = GetBoneLocation(BackRightBoneName, EBoneSpaces::WorldSpace);
-    if (Location.IsZero())
-    {
-        UE_LOG(LogCoastal, Error, TEXT("Equipment back right bone name was not set properly."));
-    }
-
-    return Location;
-}
-
-std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontLeft(const FCollisionQueryParams& IgnoreParams) const
-{
-    const FVector Start = GetFrontLeftBoneLocation();
+    const FVector Start = GetAxisBoneLocation(AxisBone);
     const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
 
-    FHitResult HitResult;
-    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
+    bool bLineTrace = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams);
+    if (bLineTrace)
     {
-        LINE(Start, End, FColor::Yellow);
-        return std::make_optional<FHitResult>(HitResult);
+        LINE(Start, End, FColor::White);
     }
-    return std::nullopt;  // no hit occurred
+    return bLineTrace;
 }
 
-std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceFrontRight(const FCollisionQueryParams& IgnoreParams) const
+bool UCoastalEquipmentMeshComponent::LineTraceCombined(FVector& AverageHitNormal, FHitResult& HitResultFrontLeft,
+                                                       FHitResult& HitResultFrontRight, FHitResult& HitResultBackLeft,
+                                                       FHitResult& HitResultBackRight,
+                                                       const FCollisionQueryParams& IgnoreParams) const
 {
-    const FVector Start = GetFrontRightBoneLocation();
-    const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
-
-    FHitResult HitResult;
-    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
-    {
-        LINE(Start, End, FColor::Green);
-        return std::make_optional<FHitResult>(HitResult);
-    }
-    return std::nullopt;  // no hit occurred
-}
-
-std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackLeft(const FCollisionQueryParams& IgnoreParams) const
-{
-    const FVector Start = GetBackLeftBoneLocation();
-    const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
-
-    FHitResult HitResult;
-    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
-    {
-        LINE(Start, End, FColor::Red);
-        return std::make_optional<FHitResult>(HitResult);
-    }
-    return std::nullopt;  // no hit occurred
-}
-
-std::optional<FHitResult> UCoastalEquipmentMeshComponent::LineTraceBackRight(const FCollisionQueryParams& IgnoreParams) const
-{
-    const FVector Start = GetBackRightBoneLocation();
-    const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
-
-    FHitResult HitResult;
-    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams))
-    {
-        LINE(Start, End, FColor::Blue);
-        return std::make_optional<FHitResult>(HitResult);
-    }
-    return std::nullopt;  // no hit occurred
-}
-
-std::optional<FVector> UCoastalEquipmentMeshComponent::LineTraceCombined(const FCollisionQueryParams& IgnoreParams) const
-{
-    std::optional<FHitResult> OptionHitResultFrontLeft = LineTraceFrontLeft(IgnoreParams);
-    bool bDidHitFrontLeft = OptionHitResultFrontLeft.has_value();
-
-    std::optional<FHitResult> OptionHitResultFrontRight = LineTraceFrontRight(IgnoreParams);
-    bool bDidHitFrontRight = OptionHitResultFrontRight.has_value();
-
-    std::optional<FHitResult> OptionHitResultBackLeft = LineTraceBackLeft(IgnoreParams);
-    bool bDidHitBackLeft = OptionHitResultBackLeft.has_value();
-
-    std::optional<FHitResult> OptionHitResultBackRight = LineTraceBackRight(IgnoreParams);
-    bool bDidHitBackRight = OptionHitResultBackRight.has_value();
+    bool bDidHitFrontLeft = LineTraceAxisBone(ECoastalEquipmentAxisBone::FrontLeft, HitResultFrontLeft, IgnoreParams);
+    bool bDidHitFrontRight = LineTraceAxisBone(ECoastalEquipmentAxisBone::FrontRight, HitResultFrontRight, IgnoreParams);
+    bool bDidHitBackLeft = LineTraceAxisBone(ECoastalEquipmentAxisBone::BackLeft, HitResultBackLeft, IgnoreParams);
+    bool bDidHitBackRight = LineTraceAxisBone(ECoastalEquipmentAxisBone::BackRight, HitResultBackRight, IgnoreParams);
 
     if (!bDidHitFrontLeft && !bDidHitFrontRight && !bDidHitBackLeft && !bDidHitBackRight)
     {
-        return std::nullopt;
+        return false;
     }
 
-    FVector AccumulatedNormal = FVector::ZeroVector;
+    FVector AccumulatedHitNormal = FVector::ZeroVector;
     int32 HitCount = 0;
     if (bDidHitFrontLeft)
     {
-        AccumulatedNormal += OptionHitResultFrontLeft->Normal;
+        AccumulatedHitNormal += HitResultFrontLeft.Normal;
         HitCount++;
     }
     if (bDidHitFrontRight)
     {
-        AccumulatedNormal += OptionHitResultFrontRight->Normal;
+        AccumulatedHitNormal += HitResultFrontRight.Normal;
         HitCount++;
     }
     if (bDidHitBackLeft)
     {
-        AccumulatedNormal += OptionHitResultBackLeft->Normal;
+        AccumulatedHitNormal += HitResultBackLeft.Normal;
         HitCount++;
     }
     if (bDidHitBackRight)
     {
-        AccumulatedNormal += OptionHitResultBackRight->Normal;
+        AccumulatedHitNormal += HitResultBackRight.Normal;
         HitCount++;
     }
 
-    return (AccumulatedNormal / HitCount).GetSafeNormal();
+    AverageHitNormal = (AccumulatedHitNormal / HitCount).GetSafeNormal();
+    return true;
+}
+
+bool UCoastalEquipmentMeshComponent::LineTraceCombined(FVector& AverageHitNormal,
+                                                       const FCollisionQueryParams& IgnoreParams) const
+{
+    FHitResult HitResultFrontLeft;
+    FHitResult HitResultFrontRight;
+    FHitResult HitResultBackLeft;
+    FHitResult HitResultBackRight;
+    return LineTraceCombined(AverageHitNormal, HitResultFrontLeft, HitResultFrontRight, HitResultBackLeft, HitResultBackRight,
+                             IgnoreParams);
 }

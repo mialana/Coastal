@@ -7,9 +7,15 @@
 
 #include "CoastalEquipmentMeshComponent.generated.h"
 
-/**
- * 
- */
+UENUM(BlueprintType)
+enum class ECoastalEquipmentAxisBone : uint8
+{
+    FrontLeft,
+    FrontRight,
+    BackLeft,
+    BackRight
+};
+
 UCLASS()
 
 class COASTAL_API UCoastalEquipmentMeshComponent : public USkeletalMeshComponent
@@ -21,24 +27,23 @@ public:
 
     virtual void BeginPlay() override;
 
+    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal")
+    FName GetAxisBoneName(ECoastalEquipmentAxisBone AxisBone) const;
+    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal")
+    FVector GetAxisBoneLocation(ECoastalEquipmentAxisBone AxisBone) const;
+
+    bool LineTraceAxisBone(ECoastalEquipmentAxisBone AxisBone, FHitResult& HitResult,
+                           const FCollisionQueryParams& IgnoreParams) const;
+    bool LineTraceCombined(FVector& AverageHitNormal, FHitResult& HitResultFrontLeft, FHitResult& HitResultFrontRight,
+                           FHitResult& HitResultBackLeft, FHitResult& HitResultBackRight,
+                           const FCollisionQueryParams& IgnoreParams) const;
+    bool LineTraceCombined(FVector& AverageHitNormal, const FCollisionQueryParams& IgnoreParams) const;
+
 public:
-    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal") FVector GetFrontLeftBoneLocation() const;
-    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal") FVector GetFrontRightBoneLocation() const;
-    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal") FVector GetBackLeftBoneLocation() const;
-    UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Coastal") FVector GetBackRightBoneLocation() const;
-
-    std::optional<FHitResult> LineTraceFrontLeft(const FCollisionQueryParams& IgnoreParams) const;
-    std::optional<FHitResult> LineTraceFrontRight(const FCollisionQueryParams& IgnoreParams) const;
-    std::optional<FHitResult> LineTraceBackLeft(const FCollisionQueryParams& IgnoreParams) const;
-    std::optional<FHitResult> LineTraceBackRight(const FCollisionQueryParams& IgnoreParams) const;
-
-    std::optional<FVector> LineTraceCombined(const FCollisionQueryParams& IgnoreParams) const;
-
-public:
-    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName FrontLeftBoneName;
-    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName FrontRightBoneName;
-    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName BackLeftBoneName;
-    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName BackRightBoneName;
+    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName FrontLeftAxisBoneName;
+    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName FrontRightAxisBoneName;
+    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName BackLeftAxisBoneName;
+    UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName BackRightAxisBoneName;
 
     UPROPERTY(Transient) float ScaledHalfHeight;
 };

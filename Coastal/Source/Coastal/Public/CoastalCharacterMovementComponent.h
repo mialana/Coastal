@@ -36,6 +36,7 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
 
         // compressed flags
         uint8 Saved_bWantsToSprint : 1;
+        uint8 Saved_bHasHitNormalCharacterEquipment : 1;
 
         // standard remote procedure calls (rpc) flags
         TEnumAsByte<EMovementMode> Saved_PreviousMovementMode;
@@ -64,6 +65,8 @@ protected:
     virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
     virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
 
+    virtual bool DoJump(bool bReplayingMoves, float DeltaTime) override;
+
     virtual bool CanAttemptJump() const override;
 
     virtual float GetMaxSpeed() const override;
@@ -77,8 +80,7 @@ private:
     void ExitSkate();
     void PhysSkate(float DeltaTime, int32 Iterations);
 
-    std::optional<FVector> GetHitNormalCharacter() const;
-    std::optional<FVector> GetHitNormalCharacterEquipment() const;
+    bool GetHitNormalCharacterEquipment(FVector& HitNormal) const;
 
 public:
     UFUNCTION(BlueprintPure, Category = "Pawn|Components|CharacterMovement|Coastal")
@@ -108,9 +110,12 @@ public:
     bool Safe_bWantsToSprint;
 
     // standard remote procedure calls (rpc) flags
-    UPROPERTY(Category = "Character Movement: MovementMode", BlueprintReadOnly)
+    UPROPERTY(Category = "Character Movement: Safe Movement Data", BlueprintReadOnly)
+    bool Safe_bHasHitNormalCharacterEquipment;
+
+    UPROPERTY(Category = "Character Movement: Safe Movement Data", BlueprintReadOnly)
     TEnumAsByte<EMovementMode> Safe_PreviousMovementMode;
-    UPROPERTY(Category = "Character Movement: MovementMode", BlueprintReadOnly)
+    UPROPERTY(Category = "Character Movement: Safe Movement Data", BlueprintReadOnly)
     TEnumAsByte<ECustomMovementMode> Safe_PreviousCustomMovementMode;
 
     static const float BRAKE_TO_STOP_VELOCITY_SQUARED;
