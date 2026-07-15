@@ -21,6 +21,8 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::Clear()
 
     // reset flags
     Saved_bWantsToSprint = 0u;
+    Saved_PreviousMovementMode = MOVE_None;
+    Saved_PreviousCustomMovementMode = CMOVE_None;
 }
 
 void UCoastalCharacterMovementComponent::FSavedMove_Coastal::SetMoveFor(ACharacter* C, float InDeltaTime,
@@ -32,6 +34,8 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::SetMoveFor(ACharact
     UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(C->GetCharacterMovement());
 
     Saved_bWantsToSprint = CharacterMovement->Safe_bWantsToSprint;
+    Saved_PreviousMovementMode = CharacterMovement->Safe_PreviousMovementMode;
+    Saved_PreviousCustomMovementMode = CharacterMovement->Safe_PreviousCustomMovementMode;
 }
 
 bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(const FSavedMovePtr& NewMove,
@@ -40,6 +44,14 @@ bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(cons
     FSavedMove_Coastal* NewCoastalMove = static_cast<FSavedMove_Coastal*>(NewMove.Get());
 
     if (Saved_bWantsToSprint != NewCoastalMove->Saved_bWantsToSprint)
+    {
+        return false;
+    }
+    if (Saved_PreviousMovementMode != NewCoastalMove->Saved_PreviousMovementMode)
+    {
+        return false;
+    }
+    if (Saved_PreviousCustomMovementMode != NewCoastalMove->Saved_PreviousCustomMovementMode)
     {
         return false;
     }
@@ -55,6 +67,8 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::PrepMoveFor(ACharac
     UCoastalCharacterMovementComponent* CharacterMovement = Cast<UCoastalCharacterMovementComponent>(C->GetCharacterMovement());
 
     CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
+    CharacterMovement->Safe_PreviousMovementMode = Saved_PreviousMovementMode;
+    CharacterMovement->Safe_PreviousCustomMovementMode = Saved_PreviousCustomMovementMode;
 }
 
 uint8 UCoastalCharacterMovementComponent::FSavedMove_Coastal::GetCompressedFlags() const
@@ -124,6 +138,9 @@ void UCoastalCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 void UCoastalCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
 {
     Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+
+    Safe_PreviousMovementMode = PreviousMovementMode;
+    Safe_PreviousCustomMovementMode = static_cast<ECustomMovementMode>(PreviousCustomMode);
 
     if (PreviousMovementMode == MOVE_Custom && PreviousCustomMode == CMOVE_Skate)
     {
@@ -229,7 +246,12 @@ void UCoastalCharacterMovementComponent::EnterSkate() const
 
 void UCoastalCharacterMovementComponent::ExitSkate()
 {
-    CoastalCharacterOwner->GetEquipmentMeshComponent()->SetVisibility(false);
+    // TODO: move visibiility to animation blueprint
+    if (MovementMode != MOVE_Falling)
+    {
+        CoastalCharacterOwner->GetEquipmentMeshComponent()->SetVisibility(false);
+    }
+
     FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(), FVector::UpVector)
                             .ToQuat();
     FHitResult HitResult;
@@ -267,7 +289,6 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
 
         // update velocity as a function of gravity. update velocity rather than acceleration to keep acceleration reserved for user input
         Velocity += GetGravityZ() * FVector::UpVector * TimeTick;  // v = v + at
-
         CalcVelocity(TimeTick, FrictionSkating, false, GetMaxBrakingDeceleration());
 
         // compute displacement during this tick
@@ -286,6 +307,13 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
             {
                 Up = HitNormal;
             }
+        }
+        else
+        {
+            // start falling
+            SetMovementMode(MOVE_Falling);
+            StartNewPhysics(RemainingTime, Iterations);
+            return;
         }
 
         // do not use the z-component when computing whether we should substitute forward vector for velocity

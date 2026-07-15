@@ -38,6 +38,8 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
         uint8 Saved_bWantsToSprint : 1;
 
         // standard remote procedure calls (rpc) flags
+        TEnumAsByte<EMovementMode> Saved_PreviousMovementMode;
+        TEnumAsByte<ECustomMovementMode> Saved_PreviousCustomMovementMode;
     };
 
     class FNetworkPredictionData_Client_Coastal : public FNetworkPredictionData_Client_Character
@@ -88,7 +90,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement|Coastal") void SkatePressed();
 
 public:
-    UPROPERTY(Category = "Character Movement: MovementMode", EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(Category = "Character Movement: MovementMode", EditDefaultsOnly)
     TEnumAsByte<ECustomMovementMode> DefaultCustomMovementMode;
 
     UPROPERTY(Category = "Character Movement: Walking", EditDefaultsOnly) float MaxSpeedSprintWalking = 1000.f;
@@ -106,6 +108,10 @@ public:
     bool Safe_bWantsToSprint;
 
     // standard remote procedure calls (rpc) flags
+    UPROPERTY(Category = "Character Movement: MovementMode", BlueprintReadOnly)
+    TEnumAsByte<EMovementMode> Safe_PreviousMovementMode;
+    UPROPERTY(Category = "Character Movement: MovementMode", BlueprintReadOnly)
+    TEnumAsByte<ECustomMovementMode> Safe_PreviousCustomMovementMode;
 
     static const float BRAKE_TO_STOP_VELOCITY_SQUARED;
 };
