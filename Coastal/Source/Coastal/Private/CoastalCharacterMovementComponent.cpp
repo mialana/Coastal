@@ -6,8 +6,6 @@
 #include "CoastalCharacter.h"
 #include "CoastalEquipmentMeshComponent.h"
 
-#include "Components/CapsuleComponent.h"
-#include "Engine/World.h"
 #include "GameFramework/Character.h"
 
 const float UCoastalCharacterMovementComponent::BRAKE_TO_STOP_VELOCITY_SQUARED = BRAKE_TO_STOP_VELOCITY
