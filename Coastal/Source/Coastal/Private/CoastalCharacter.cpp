@@ -24,7 +24,7 @@ ACoastalCharacter::ACoastalCharacter(const FObjectInitializer& ObjectInitializer
     CoastalCharacterMovementComponent = Cast<UCoastalCharacterMovementComponent>(GetCharacterMovement());
 
     // Set size for collision capsule
-    GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+    GetCapsuleComponent()->InitCapsuleSize(35.f, 90.f);
 
     // Don't rotate when the controller rotates. Let that just affect the camera.
     bUseControllerRotationPitch = false;
@@ -33,19 +33,21 @@ ACoastalCharacter::ACoastalCharacter(const FObjectInitializer& ObjectInitializer
 
     // Configure character movement
     GetCharacterMovement()->bOrientRotationToMovement = true;
-    GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+    GetCharacterMovement()->RotationRate = FRotator(0.f, 500.f, 0.f);
     GetCharacterMovement()->JumpZVelocity = 500.f;
     GetCharacterMovement()->AirControl = 0.35f;
     GetCharacterMovement()->MaxWalkSpeed = 500.f;
     GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
     GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
-    GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
-    GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
+    GetCharacterMovement()->BrakingDecelerationFalling = 1500.f;
+    GetCharacterMovement()->BrakingDecelerationFalling = 1500.f;
 
     // Create a camera boom (pulls in towards the player if there is a collision)
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(RootComponent);
-    CameraBoom->TargetArmLength = 400.0f;
+    CameraBoom->TargetArmLength = 400.f;
+    CameraBoom->SocketOffset = FVector(0.f, 0.f, 75.f);
+    CameraBoom->TargetOffset = FVector(-50.f, 0.f, 0.f);
     CameraBoom->bUsePawnControlRotation = true;
 
     // Create a follow camera
