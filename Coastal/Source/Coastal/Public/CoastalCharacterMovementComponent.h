@@ -102,7 +102,7 @@ public:
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxAccelerationSkating = 300.f;
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float FrictionSkating = 0.5f;
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float BrakingDecelerationSkating = 100.f;
-    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float RotationMinDotProductSkating = 0.9997f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float RotationMinDotProductSkating = 0.9998f;
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float RotationMaxDegreesSkating = 60.f;
 
     // transient
