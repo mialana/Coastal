@@ -5,6 +5,7 @@
 #include "Coastal.h"
 #include "CoastalCharacter.h"
 #include "CoastalEquipmentMeshComponent.h"
+#include "CoastalLinearAlgebraLibrary.h"
 
 #include "GameFramework/Character.h"
 
@@ -331,9 +332,9 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
         if (GetHitNormalCharacterEquipment(HitNormal))
         {
             Safe_bHasHitNormalCharacterEquipment = true;
-            if (!HitNormal.Cross(Up).IsNearlyZero(0.001f))
+            if (HitNormal.Dot(Up) < RotationMinDotProductSkating)
             {
-                Up = HitNormal;
+                Up = UCoastalLinearAlgebraLibrary::RotateVectorTowards(Up, HitNormal, RotationMaxDegreesSkating);
             }
         }
         else
