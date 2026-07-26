@@ -50,12 +50,7 @@ bool UCoastalEquipmentMeshComponent::LineTraceAxisBone(ECoastalEquipmentAxisBone
     const FVector Start = GetAxisBoneLocation(AxisBone);
     const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
 
-    bool bLineTrace = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams);
-    if (bLineTrace)
-    {
-        LINE(Start, End, FColor::White);
-    }
-    return bLineTrace;
+    return GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams);
 }
 
 bool UCoastalEquipmentMeshComponent::LineTraceCombined(FVector& AverageHitNormal, FHitResult& HitResultFrontLeft,
