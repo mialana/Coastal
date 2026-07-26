@@ -13,7 +13,7 @@ void UCoastalEquipmentMeshComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    ScaledHalfHeight = Bounds.BoxExtent.Z;
+    TraceLength = Bounds.BoxExtent.Z * 5.f;
 }
 
 FName UCoastalEquipmentMeshComponent::GetAxisBoneName(ECoastalEquipmentAxisBone AxisBone) const
@@ -48,7 +48,7 @@ bool UCoastalEquipmentMeshComponent::LineTraceAxisBone(ECoastalEquipmentAxisBone
                                                        const FCollisionQueryParams& IgnoreParams) const
 {
     const FVector Start = GetAxisBoneLocation(AxisBone);
-    const FVector End = Start + ScaledHalfHeight * FVector::DownVector;
+    const FVector End = Start + TraceLength * FVector::DownVector;
 
     return GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, IgnoreParams);
 }
@@ -104,4 +104,13 @@ bool UCoastalEquipmentMeshComponent::LineTraceCombined(FVector& AverageHitNormal
     FHitResult HitResultBackRight;
     return LineTraceCombined(AverageHitNormal, HitResultFrontLeft, HitResultFrontRight, HitResultBackLeft, HitResultBackRight,
                              IgnoreParams);
+}
+
+bool UCoastalEquipmentMeshComponent::LineTraceRootComponent(FHitResult& HitResult,
+                                                            const FCollisionQueryParams& QueryParams) const
+{
+    const FVector Start = GetComponentLocation();
+    const FVector End = Start + TraceLength * FVector::DownVector;
+
+    return GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, QueryParams);
 }

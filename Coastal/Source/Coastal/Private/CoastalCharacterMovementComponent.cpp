@@ -8,6 +8,9 @@
 #include "CoastalLinearAlgebraLibrary.h"
 
 #include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
+#include "GameFramework/GameModeBase.h"
 
 const float UCoastalCharacterMovementComponent::BRAKE_TO_STOP_VELOCITY_SQUARED = BRAKE_TO_STOP_VELOCITY
                                                                                  * BRAKE_TO_STOP_VELOCITY;
@@ -23,6 +26,7 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::Clear()
     Saved_bHasHitNormalCharacterEquipment = 0u;
     Saved_PreviousMovementMode = MOVE_None;
     Saved_PreviousCustomMovementMode = CMOVE_None;
+    Saved_MovementSurfaceType = MovementSurface_Default;
 }
 
 void UCoastalCharacterMovementComponent::FSavedMove_Coastal::SetMoveFor(ACharacter* C, float InDeltaTime,
@@ -37,6 +41,7 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::SetMoveFor(ACharact
     Saved_bHasHitNormalCharacterEquipment = CharacterMovement->Safe_bHasHitNormalCharacterEquipment;
     Saved_PreviousMovementMode = CharacterMovement->Safe_PreviousMovementMode;
     Saved_PreviousCustomMovementMode = CharacterMovement->Safe_PreviousCustomMovementMode;
+    Saved_MovementSurfaceType = CharacterMovement->Safe_MovementSurfaceType;
 }
 
 bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(const FSavedMovePtr& NewMove,
@@ -44,19 +49,11 @@ bool UCoastalCharacterMovementComponent::FSavedMove_Coastal::CanCombineWith(cons
 {
     FSavedMove_Coastal* NewCoastalMove = static_cast<FSavedMove_Coastal*>(NewMove.Get());
 
-    if (Saved_bWantsToSprint != NewCoastalMove->Saved_bWantsToSprint)
-    {
-        return false;
-    }
-    if (Saved_bHasHitNormalCharacterEquipment != NewCoastalMove->Saved_bHasHitNormalCharacterEquipment)
-    {
-        return false;
-    }
-    if (Saved_PreviousMovementMode != NewCoastalMove->Saved_PreviousMovementMode)
-    {
-        return false;
-    }
-    if (Saved_PreviousCustomMovementMode != NewCoastalMove->Saved_PreviousCustomMovementMode)
+    if (Saved_bWantsToSprint != NewCoastalMove->Saved_bWantsToSprint
+        || Saved_bHasHitNormalCharacterEquipment != NewCoastalMove->Saved_bHasHitNormalCharacterEquipment
+        || Saved_PreviousMovementMode != NewCoastalMove->Saved_PreviousMovementMode
+        || Saved_PreviousCustomMovementMode != NewCoastalMove->Saved_PreviousCustomMovementMode
+        || Saved_MovementSurfaceType != NewCoastalMove->Saved_MovementSurfaceType)
     {
         return false;
     }
@@ -75,6 +72,7 @@ void UCoastalCharacterMovementComponent::FSavedMove_Coastal::PrepMoveFor(ACharac
     CharacterMovement->Safe_bHasHitNormalCharacterEquipment = Saved_bHasHitNormalCharacterEquipment;
     CharacterMovement->Safe_PreviousMovementMode = Saved_PreviousMovementMode;
     CharacterMovement->Safe_PreviousCustomMovementMode = Saved_PreviousCustomMovementMode;
+    CharacterMovement->Safe_MovementSurfaceType = Saved_MovementSurfaceType;
 }
 
 uint8 UCoastalCharacterMovementComponent::FSavedMove_Coastal::GetCompressedFlags() const
@@ -215,9 +213,21 @@ float UCoastalCharacterMovementComponent::GetMaxSpeed() const
     switch (CustomMovementMode)
     {
         case CMOVE_Skate:
-            return Safe_bWantsToSprint ? MaxSpeedSprintSkating : MaxSpeedSkating;
+            switch (Safe_MovementSurfaceType)
+            {
+                case MovementSurface_Slow:
+                    return MaxSpeedSkatingSlow;
+                case MovementSurface_Fast:
+                    return MaxSpeedSkatingFast;
+                case MovementSurface_Default:
+                    return Safe_bWantsToSprint ? MaxSpeedSprintSkating : MaxSpeedSkating;
+                default:
+                    UE_LOG(LogCoastal, Fatal, TEXT("Invalid Movement Mode"))
+                    return -1.f;
+            }
+
         default:
-            UE_LOG(LogTemp, Error, TEXT("Invalid Movement Mode"))
+            UE_LOG(LogCoastal, Fatal, TEXT("Invalid Movement Mode"))
             return -1.f;
     }
 }
@@ -251,7 +261,7 @@ float UCoastalCharacterMovementComponent::GetMaxBrakingDeceleration() const
         case CMOVE_Skate:
             return BrakingDecelerationSkating;
         default:
-            UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"))
+            UE_LOG(LogCoastal, Fatal, TEXT("Invalid Movement Mode"))
             return -1.f;
     }
 }
@@ -316,6 +326,10 @@ void UCoastalCharacterMovementComponent::PhysSkate(float DeltaTime, int32 Iterat
 
         // update velocity as a function of gravity. update velocity rather than acceleration to keep acceleration reserved for user input
         Velocity += GetGravityZ() * FVector::UpVector * TimeTick;  // v = v + at
+
+        UpdateHitPhysicalSurface();
+        ApplyPhysicalSurface(Safe_MovementSurfaceType);
+
         CalcVelocity(TimeTick, FrictionSkating, false, GetMaxBrakingDeceleration());
 
         // compute displacement during this tick
@@ -383,6 +397,26 @@ bool UCoastalCharacterMovementComponent::GetHitNormalCharacterEquipment(FVector&
     UCoastalEquipmentMeshComponent* Equipment = CoastalCharacterOwner->GetEquipmentMeshComponent();
 
     return Equipment->LineTraceCombined(HitNormal, CoastalCharacterOwner->GetIgnoreCharacterParams());
+}
+
+bool UCoastalCharacterMovementComponent::UpdateHitPhysicalSurface()
+{
+    UCoastalEquipmentMeshComponent* Equipment = CoastalCharacterOwner->GetEquipmentMeshComponent();
+
+    static FCollisionQueryParams QueryParams{};
+    QueryParams.bReturnPhysicalMaterial = true;
+
+    FHitResult HitResult;
+    bool bHasPhysMat = Equipment->LineTraceRootComponent(HitResult, QueryParams) && HitResult.PhysMaterial.IsValid();
+
+    // convert result to known enum types
+    const TEnumAsByte<EPhysicalSurface> SurfaceType = bHasPhysMat ? HitResult.PhysMaterial.Get()->SurfaceType
+                                                                  : TEnumAsByte(SurfaceType_Default);
+
+    UObject* const GameModeObj = UGameplayStatics::GetGameMode(GetWorld());
+    Safe_MovementSurfaceType = ICoastalGameModeInterface::Execute_SurfaceTypeToMovementSurfaceType(GameModeObj, SurfaceType);
+
+    return bHasPhysMat;
 }
 
 bool UCoastalCharacterMovementComponent::IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const

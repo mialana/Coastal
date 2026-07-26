@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/CharacterMovementComponent.h"
+
+#include "CoastalGameModeInterface.h"
+
 #include "CoastalCharacterMovementComponent.generated.h"
 
 class ACoastalCharacter;
@@ -17,7 +20,7 @@ enum ECustomMovementMode
     CMOVE_MAX UMETA(Hidden),
 };
 
-UCLASS(ClassGroup = ("Custom"), meta = (BlueprintSpawnableComponent))
+UCLASS(Blueprintable, BlueprintType, ClassGroup = ("Custom"), meta = (BlueprintSpawnableComponent))
 
 class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovementComponent
 {
@@ -36,11 +39,14 @@ class COASTAL_API UCoastalCharacterMovementComponent : public UCharacterMovement
 
         // compressed flags
         uint8 Saved_bWantsToSprint : 1;
-        uint8 Saved_bHasHitNormalCharacterEquipment : 1;
 
         // standard remote procedure calls (rpc) flags
+        uint8 Saved_bHasHitNormalCharacterEquipment : 1;
+
         TEnumAsByte<EMovementMode> Saved_PreviousMovementMode;
         TEnumAsByte<ECustomMovementMode> Saved_PreviousCustomMovementMode;
+
+        TEnumAsByte<EMovementSurfaceType> Saved_MovementSurfaceType;
     };
 
     class FNetworkPredictionData_Client_Coastal : public FNetworkPredictionData_Client_Character
@@ -81,6 +87,7 @@ private:
     void PhysSkate(float DeltaTime, int32 Iterations);
 
     bool GetHitNormalCharacterEquipment(FVector& HitNormal) const;
+    bool UpdateHitPhysicalSurface();
 
 public:
     UFUNCTION(BlueprintPure, Category = "Pawn|Components|CharacterMovement|Coastal")
@@ -91,6 +98,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement|Coastal") void SkatePressed();
 
+    UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "Pawn|Components|CharacterMovement|Coastal")
+    void ApplyPhysicalSurface(const TEnumAsByte<EMovementSurfaceType>& CurrentMovementSurfaceType);
+
 public:
     UPROPERTY(Category = "Character Movement: MovementMode", EditDefaultsOnly)
     TEnumAsByte<ECustomMovementMode> DefaultCustomMovementMode;
@@ -98,7 +108,10 @@ public:
     UPROPERTY(Category = "Character Movement: Walking", EditDefaultsOnly) float MaxSpeedSprintWalking = 1000.f;
 
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSkating = 1000.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSkatingSlow = 500.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSkatingFast = 2500.f;
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSprintSkating = 1500.f;
+
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxAccelerationSkating = 300.f;
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float FrictionSkating = 0.5f;
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float BrakingDecelerationSkating = 100.f;
@@ -109,6 +122,7 @@ public:
     UPROPERTY(Transient) ACoastalCharacter* CoastalCharacterOwner;
 
     // compressed flags
+    UPROPERTY(Category = "Character Movement: Safe Movement Data", BlueprintReadOnly)
     bool Safe_bWantsToSprint;
 
     // standard remote procedure calls (rpc) flags
@@ -119,6 +133,9 @@ public:
     TEnumAsByte<EMovementMode> Safe_PreviousMovementMode;
     UPROPERTY(Category = "Character Movement: Safe Movement Data", BlueprintReadOnly)
     TEnumAsByte<ECustomMovementMode> Safe_PreviousCustomMovementMode;
+
+    UPROPERTY(Category = "Character Movement: Safe Movement Data", BlueprintReadOnly)
+    TEnumAsByte<EMovementSurfaceType> Safe_MovementSurfaceType;
 
     static const float BRAKE_TO_STOP_VELOCITY_SQUARED;
 };

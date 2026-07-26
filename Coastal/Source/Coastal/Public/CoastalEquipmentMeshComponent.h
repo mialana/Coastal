@@ -38,6 +38,7 @@ public:
                            FHitResult& HitResultBackLeft, FHitResult& HitResultBackRight,
                            const FCollisionQueryParams& IgnoreParams) const;
     bool LineTraceCombined(FVector& AverageHitNormal, const FCollisionQueryParams& IgnoreParams) const;
+    bool LineTraceRootComponent(FHitResult& HitResult, const FCollisionQueryParams& QueryParams) const;
 
 public:
     UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName FrontLeftAxisBoneName;
@@ -45,5 +46,5 @@ public:
     UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName BackLeftAxisBoneName;
     UPROPERTY(Category = "CoastalEquipmentMeshComponent", EditAnywhere, BlueprintReadWrite) FName BackRightAxisBoneName;
 
-    UPROPERTY(Transient) float ScaledHalfHeight;
+    UPROPERTY(Transient) float TraceLength;
 };

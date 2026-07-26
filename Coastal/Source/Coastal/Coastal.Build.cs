@@ -8,7 +8,8 @@ public class Coastal : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] {
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
 			"Core",
 			"CoreUObject",
 			"Engine",
@@ -18,13 +19,15 @@ public class Coastal : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
+			"Slate",
+			"PhysicsCore"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
-		PublicIncludePaths.AddRange(new string[] {
-			"Coastal", 
+		PublicIncludePaths.AddRange(new string[]
+		{
+			"Coastal",
 			"Coastal/Public",
 			"Coastal/Variant_Platforming",
 			"Coastal/Variant_Platforming/Animation",
