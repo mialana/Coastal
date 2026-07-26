@@ -108,7 +108,7 @@ public:
     UPROPERTY(Category = "Character Movement: Walking", EditDefaultsOnly) float MaxSpeedSprintWalking = 1000.f;
 
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSkating = 1000.f;
-    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSkatingSlow = 500.f;
+    UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSkatingSlow = 100.f;
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSkatingFast = 2500.f;
     UPROPERTY(Category = "Character Movement: Skating", EditDefaultsOnly) float MaxSpeedSprintSkating = 1500.f;
 
